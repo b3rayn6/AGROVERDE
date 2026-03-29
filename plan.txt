@@ -1,0 +1,6 @@
+1. Import `jsPDF` and `autoTable` in `ListaFacturasFactoria.jsx`.
+2. Add state for `cheques` and `activeTab` ('facturas', 'cheques').
+3. Add `cargarCheques` function to fetch from `cheques_factoria`.
+4. Render Tabs (Facturas / Cheques Registrados).
+5. If `activeTab === 'cheques'`, render a table for `cheques` with Print/PDF button.
+6. Make PDF generation function `generarPDFCheques()`.
