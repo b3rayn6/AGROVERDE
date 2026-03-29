@@ -1,6 +1,6 @@
 import { formatCurrency, formatNumber } from '../lib/formatters';
 import { useState, useEffect } from 'react';
-import { LogOut, Plus, Search, Edit2, Trash2, FileText, Filter, Download, Calendar, User, Wifi, WifiOff, RefreshCw, Menu, X, Scale, FileSpreadsheet, Truck, Users, Package, ShoppingCart, DollarSign, TrendingUp, CreditCard, UserCog, Wallet } from 'lucide-react';
+import { LogOut, Plus, Search, Edit2, Trash2, FileText, Filter, Download, Calendar, User, Wifi, WifiOff, RefreshCw, Menu, X, Scale, FileSpreadsheet, Truck, Users, Package, ShoppingCart, DollarSign, TrendingUp, CreditCard, UserCog, Wallet, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import {
   getPesadasLocal,
@@ -187,6 +187,16 @@ export default function Dashboard({ user, onLogout }) {
   const loadPesadas = async () => {
     setLoading(true);
 
+    // Función para aplicar estados de pago desde localStorage
+    const aplicarEstadosPago = (listaPesadas) => {
+      const estados = getEstadosPago();
+      return listaPesadas.map(p => ({
+        ...p,
+        estado_pago: p.estado_pago || estados[p.id]?.estado || 'pendiente',
+        fecha_pago: p.fecha_pago || estados[p.id]?.fecha || null
+      }));
+    };
+
     if (isOnline) {
       // Si hay conexión, cargar desde Supabase
       const { data, error } = await supabase
@@ -208,17 +218,19 @@ export default function Dashboard({ user, onLogout }) {
             .select('*')
             .order('fecha', { ascending: true });
           if (dataActualizada) {
-            setPesadas(dataActualizada);
-            setFilteredPesadas(dataActualizada);
+            const conEstados = aplicarEstadosPago(dataActualizada);
+            setPesadas(conEstados);
+            setFilteredPesadas(conEstados);
           }
         } else {
-          setPesadas(data);
-          setFilteredPesadas(data);
+          const conEstados = aplicarEstadosPago(data);
+          setPesadas(conEstados);
+          setFilteredPesadas(conEstados);
         }
       }
     } else {
       // Si no hay conexión, cargar desde localStorage
-      const localPesadas = getPesadasLocal();
+      const localPesadas = aplicarEstadosPago(getPesadasLocal());
       setPesadas(localPesadas);
       setFilteredPesadas(localPesadas);
     }
@@ -431,6 +443,61 @@ export default function Dashboard({ user, onLogout }) {
       console.error('Error en handleDelete:', error);
       alert('Error al eliminar: ' + error.message);
     }
+  };
+
+  // Estado de pago guardado en localStorage mientras no existan las columnas en BD
+  const getEstadosPago = () => {
+    try {
+      return JSON.parse(localStorage.getItem('pesadas_estados_pago') || '{}');
+    } catch { return {}; }
+  };
+
+  const saveEstadoPago = (id, estado) => {
+    const estados = getEstadosPago();
+    estados[id] = { estado, fecha: estado === 'pagado' ? new Date().toISOString() : null };
+    localStorage.setItem('pesadas_estados_pago', JSON.stringify(estados));
+  };
+
+  const getEstadoPesada = (pesada) => {
+    if (pesada.estado_pago) return pesada.estado_pago;
+    const estados = getEstadosPago();
+    return estados[pesada.id]?.estado || 'pendiente';
+  };
+
+  const marcarComoPagado = async (id, estadoActual) => {
+    const nuevoEstado = estadoActual === 'pagado' ? 'pendiente' : 'pagado';
+    const mensaje = nuevoEstado === 'pagado' 
+      ? '¿Marcar esta pesada como PAGADA?' 
+      : '¿Marcar esta pesada como PENDIENTE?';
+    
+    if (!confirm(mensaje)) return;
+
+    // Siempre guardar en localStorage para persistencia
+    saveEstadoPago(id, nuevoEstado);
+
+    try {
+      const { error } = await supabase
+        .from('pesadas')
+        .update({ 
+          estado_pago: nuevoEstado,
+          fecha_pago: nuevoEstado === 'pagado' ? new Date().toISOString() : null
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.warn('Columna estado_pago no existe en BD, usando localStorage:', error.message);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+
+    // Actualizar estado local inmediatamente
+    setPesadas(prev => prev.map(p => 
+      p.id === id ? { ...p, estado_pago: nuevoEstado, fecha_pago: nuevoEstado === 'pagado' ? new Date().toISOString() : null } : p
+    ));
+    setFilteredPesadas(prev => prev.map(p => 
+      p.id === id ? { ...p, estado_pago: nuevoEstado, fecha_pago: nuevoEstado === 'pagado' ? new Date().toISOString() : null } : p
+    ));
   };
 
   const totalValor = filteredPesadas.reduce((sum, p) => sum + parseFloat(p.valor_total || 0), 0);
@@ -976,6 +1043,7 @@ export default function Dashboard({ user, onLogout }) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kg Neto</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fanegas</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
               </tr>
             </thead>
@@ -1016,7 +1084,35 @@ export default function Dashboard({ user, onLogout }) {
                       RD${parseFloat(pesada.valor_total).toLocaleString()}
                     </td>
                     <td className="px-6 py-4">
+                      {getEstadoPesada(pesada) === 'pagado' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                          <CheckCircle className="w-3 h-3" />
+                          Pagado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
+                          <XCircle className="w-3 h-3" />
+                          Pendiente
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => marcarComoPagado(pesada.id, getEstadoPesada(pesada))}
+                          className={`p-2 rounded-lg transition-colors ${
+                            getEstadoPesada(pesada) === 'pagado' 
+                              ? 'text-yellow-600 hover:bg-yellow-50' 
+                              : 'text-green-600 hover:bg-green-50'
+                          }`}
+                          title={getEstadoPesada(pesada) === 'pagado' ? 'Marcar como pendiente' : 'Marcar como pagado'}
+                        >
+                          {getEstadoPesada(pesada) === 'pagado' ? (
+                            <XCircle className="w-4 h-4" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4" />
+                          )}
+                        </button>
                         <button
                           onClick={() => setEditingPesada(pesada)}
                           className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -1044,6 +1140,7 @@ export default function Dashboard({ user, onLogout }) {
                   <td className="px-6 py-4 text-sm font-bold text-gray-800">{formatNumber(totalKilosNeto)}</td>
                   <td className="px-6 py-4 text-sm font-bold text-gray-800">{formatNumber(totalFanegas)}</td>
                   <td className="px-6 py-4 text-sm font-bold text-green-700">{formatCurrency(totalValor)}</td>
+                  <td className="px-6 py-4"></td>
                   <td className="px-6 py-4"></td>
                 </tr>
               </tfoot>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { getUserId } from '../lib/authUtils';
-import { Truck, Search, Edit2, Save, X, FileText, Filter, Trash2, Plus, CheckCircle, XCircle } from 'lucide-react';
+import { Truck, Search, Edit2, Save, X, FileText, Filter, Trash2, Plus } from 'lucide-react';
 import { generarPDFFletes } from '../lib/pdfGenerator';
 
 export default function RegistroFlete({ user }) {
@@ -297,33 +297,6 @@ export default function RegistroFlete({ user }) {
     } catch (error) {
       console.error('Error al eliminar flete:', error);
       alert('Error al eliminar el flete: ' + error.message);
-    }
-  };
-
-  const marcarComoPagado = async (id, estadoActual) => {
-    const nuevoEstado = estadoActual === 'pagado' ? 'pendiente' : 'pagado';
-    const mensaje = nuevoEstado === 'pagado' 
-      ? '¿Marcar este flete como PAGADO?' 
-      : '¿Marcar este flete como PENDIENTE?';
-    
-    if (!confirm(mensaje)) return;
-
-    try {
-      const { error } = await supabase
-        .from('fletes')
-        .update({ 
-          estado_pago: nuevoEstado,
-          fecha_pago: nuevoEstado === 'pagado' ? new Date().toISOString() : null
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      alert(`Flete marcado como ${nuevoEstado.toUpperCase()}`);
-      cargarFletes();
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al actualizar el estado de pago');
     }
   };
 
@@ -645,7 +618,6 @@ export default function RegistroFlete({ user }) {
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Precio Flete</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Factoría</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Valor Total</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
                   <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Acciones</th>
                 </tr>
               </thead>
@@ -665,36 +637,8 @@ export default function RegistroFlete({ user }) {
                     <td className="px-4 py-3 text-sm text-gray-700">${parseFloat(flete.precio_flete || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 text-sm text-gray-700">{flete.factoria}</td>
                     <td className="px-4 py-3 text-sm font-semibold text-green-600">${parseFloat(flete.valor_total_flete || 0).toFixed(2)}</td>
-                    <td className="px-4 py-3">
-                      {flete.estado_pago === 'pagado' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                          <CheckCircle className="w-3 h-3" />
-                          Pagado
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
-                          <XCircle className="w-3 h-3" />
-                          Pendiente
-                        </span>
-                      )}
-                    </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => marcarComoPagado(flete.id, flete.estado_pago)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            flete.estado_pago === 'pagado' 
-                              ? 'text-yellow-600 hover:bg-yellow-50' 
-                              : 'text-green-600 hover:bg-green-50'
-                          }`}
-                          title={flete.estado_pago === 'pagado' ? 'Marcar como pendiente' : 'Marcar como pagado'}
-                        >
-                          {flete.estado_pago === 'pagado' ? (
-                            <XCircle className="w-5 h-5" />
-                          ) : (
-                            <CheckCircle className="w-5 h-5" />
-                          )}
-                        </button>
                         {puedeEditar() && (
                           <button
                             onClick={() => handleEdit(flete)}
