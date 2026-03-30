@@ -33,7 +33,9 @@ export default function CruceFletesGastos({ user }) {
 
   const puedeEditar = () => {
     if (user?.email === 'admin@admin.com') return true;
-    const permiso = user?.permisos?.find(p => p.modulos?.codigo === 'fletes' || p.modulos?.codigo === 'flete');
+    if (user?.tipo === 'legacy') return true;
+    if (user?.roles?.nombre?.toLowerCase() === 'administrador') return true;
+    const permiso = user?.permisos?.find(p => p.modulos?.codigo === 'fletes' || p.modulos?.codigo === 'flete' || p.modulos?.codigo === 'fletes_obreros');
     return permiso?.puede_editar === true;
   };
 
@@ -264,22 +266,36 @@ export default function CruceFletesGastos({ user }) {
 
   const handleGuardarGastoHuerfano = async (e) => {
     e.preventDefault();
-    if (!puedeEditar()) return;
+    if (!puedeEditar()) {
+      alert('No tienes permisos para registrar gastos en este módulo.');
+      return;
+    }
+
+    if (!formGasto.chofer || !formGasto.monto || parseFloat(formGasto.monto) <= 0) {
+      alert('Por favor completa todos los campos requeridos (Chofer y Monto).');
+      return;
+    }
     
     setLoading(true);
     try {
-      const { error } = await supabase
+      const gastoData = {
+        chofer: formGasto.chofer,
+        tipo: formGasto.tipo,
+        monto: parseFloat(formGasto.monto),
+        fecha: formGasto.fecha,
+        descripcion: formGasto.descripcion || null
+      };
+
+      const { data, error } = await supabase
         .from('gastos_flete')
-        .insert([{
-          chofer: formGasto.chofer,
-          tipo: formGasto.tipo,
-          monto: parseFloat(formGasto.monto),
-          fecha: formGasto.fecha,
-          descripcion: formGasto.descripcion,
-          flete_id: null
-        }]);
+        .insert([gastoData])
+        .select();
 
       if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        throw new Error('El gasto no se pudo guardar. Verifica que la tabla gastos_flete tenga las columnas necesarias (chofer, tipo).');
+      }
       
       alert('Gasto registrado exitosamente (Sin flete asignado)');
       setShowGastoModal(false);
@@ -292,8 +308,8 @@ export default function CruceFletesGastos({ user }) {
       });
       cargarDatos();
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error: ' + error.message);
+      console.error('Error al guardar gasto:', error);
+      alert('Error al guardar el gasto: ' + (error.message || 'Error desconocido. Revisa la consola del navegador para más detalles.'));
     } finally {
       setLoading(false);
     }

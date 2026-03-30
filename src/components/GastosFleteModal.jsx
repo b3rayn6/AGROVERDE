@@ -43,7 +43,9 @@ export default function GastosFleteModal({ flete, onClose, user }) {
 
   const puedeEditar = () => {
     if (user?.email === 'admin@admin.com') return true;
-    const permiso = user?.permisos?.find(p => p.modulos?.codigo === 'fletes' || p.modulos?.codigo === 'flete');
+    if (user?.tipo === 'legacy') return true;
+    if (user?.roles?.nombre?.toLowerCase() === 'administrador') return true;
+    const permiso = user?.permisos?.find(p => p.modulos?.codigo === 'fletes' || p.modulos?.codigo === 'flete' || p.modulos?.codigo === 'fletes_obreros');
     return permiso?.puede_editar === true;
   };
 
