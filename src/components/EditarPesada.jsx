@@ -55,7 +55,8 @@ export default function EditarPesada({ pesada, onClose, onSuccess }) {
         .eq('id', pesada.id);
 
       if (updateError) {
-        setError('Error al actualizar la pesada');
+        console.error('Error al actualizar pesada:', updateError);
+        setError('Error al actualizar la pesada: ' + updateError.message);
         setLoading(false);
         return;
       }

@@ -6,7 +6,7 @@ import ModalChequeFactoria from './ModalChequeFactoria';
 import ModalComparacionDirecta from './ModalComparacionDirecta';
 import { generarPDFChequesFactoria } from '../lib/pdfGeneratorExtras';
 
-export default function ListaFacturasFactoria({ user, onNuevaFactura, onEditarFactura }) {
+export default function ListaFacturasFactoria({ user, onNuevaFactura, onEditarFactura = () => {} }) {
   const [facturas, setFacturas] = useState([]);
   const [cheques, setCheques] = useState([]);
   const [activeTab, setActiveTab] = useState('facturas'); // 'facturas' | 'cheques'
@@ -659,11 +659,6 @@ export default function ListaFacturasFactoria({ user, onNuevaFactura, onEditarFa
                   ))}
                 </select>
               </div>
-              <button
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
-              >
-                <Filter className="w-5 h-5" />
               <div className="relative flex-1 min-w-[200px]">
                 <select
                   value={agruparPor}
@@ -676,6 +671,11 @@ export default function ListaFacturasFactoria({ user, onNuevaFactura, onEditarFa
                   <option value="productor">Agrupar por Productor</option>
                 </select>
               </div>
+              <button
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+              >
+                <Filter className="w-5 h-5" />
                 Búsqueda Avanzada
               </button>
               {(searchTerm || filterFactoria || filterNumero || filterFechaDesde || filterFechaHasta || filterProductor || filterMontoMin || filterMontoMax || filterEstado || filterSacosMin || filterSacosMax) && (
@@ -689,18 +689,6 @@ export default function ListaFacturasFactoria({ user, onNuevaFactura, onEditarFa
               )}
             </div>
 
-              <div className="relative flex-1 min-w-[200px]">
-                <select
-                  value={agruparPor}
-                  onChange={(e) => setAgruparPor(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
-                >
-                  <option value="none">Sin agrupar</option>
-                  <option value="fecha">Agrupar por Fecha</option>
-                  <option value="factoria">Agrupar por Factoría</option>
-                  <option value="productor">Agrupar por Productor</option>
-                </select>
-              </div>
             {/* Panel de Búsqueda Avanzada */}
             {showAdvancedFilters && (
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

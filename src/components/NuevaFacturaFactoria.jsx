@@ -7,6 +7,7 @@ export default function NuevaFacturaFactoria({ user, onBack, facturaToEdit }) {
   const [clientes, setClientes] = useState([]);
   const [clientesFiltrados, setClientesFiltrados] = useState([]);
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
+  const [isLoadingEdit, setIsLoadingEdit] = useState(!!facturaToEdit);
   const [formData, setFormData] = useState({
     fecha: '',
     numero_pesada: '',
@@ -25,20 +26,28 @@ export default function NuevaFacturaFactoria({ user, onBack, facturaToEdit }) {
   useEffect(() => {
     cargarClientes();
     if (facturaToEdit) {
+      // Formatear fecha para input type="date" (necesita YYYY-MM-DD)
+      let fechaFormateada = facturaToEdit.fecha || '';
+      if (fechaFormateada && fechaFormateada.includes('T')) {
+        fechaFormateada = fechaFormateada.split('T')[0];
+      }
+      
       setFormData({
-        fecha: facturaToEdit.fecha,
+        fecha: fechaFormateada,
         numero_pesada: facturaToEdit.numero_pesada || '',
-        nombre_factoria: facturaToEdit.nombre_factoria,
-        cliente: facturaToEdit.cliente,
-        cantidad_sacos: facturaToEdit.cantidad_sacos,
-        kilos_bruto: facturaToEdit.kilos_bruto,
-        kilos_neto: facturaToEdit.kilos_neto,
-        humedad: facturaToEdit.humedad,
-        fanegas: facturaToEdit.fanegas,
-        precio_fanega: facturaToEdit.precio_fanega,
-        valor_pagar: facturaToEdit.valor_pagar,
+        nombre_factoria: facturaToEdit.nombre_factoria || '',
+        cliente: facturaToEdit.cliente || '',
+        cantidad_sacos: facturaToEdit.cantidad_sacos ?? '',
+        kilos_bruto: facturaToEdit.kilos_bruto ?? '',
+        kilos_neto: facturaToEdit.kilos_neto ?? '',
+        humedad: facturaToEdit.humedad ?? '',
+        fanegas: facturaToEdit.fanegas ?? '',
+        precio_fanega: facturaToEdit.precio_fanega ?? '',
+        valor_pagar: facturaToEdit.valor_pagar ?? '',
         notas: facturaToEdit.notas || ''
       });
+      // Permitir cálculos automáticos después de cargar datos
+      setTimeout(() => setIsLoadingEdit(false), 100);
     }
   }, [facturaToEdit]);
 
@@ -83,6 +92,7 @@ export default function NuevaFacturaFactoria({ user, onBack, facturaToEdit }) {
   }, [formData.fanegas, formData.precio_fanega]);
 
   const calcularFanegas = () => {
+    if (isLoadingEdit) return;
     const kilosNeto = parseFloat(formData.kilos_neto) || 0;
     const humedad = parseFloat(formData.humedad) || 0;
 
@@ -95,6 +105,7 @@ export default function NuevaFacturaFactoria({ user, onBack, facturaToEdit }) {
   };
 
   const calcularValorPagar = () => {
+    if (isLoadingEdit) return;
     const fanegas = parseFloat(formData.fanegas) || 0;
     const precio = parseFloat(formData.precio_fanega) || 0;
 

@@ -28,6 +28,7 @@ import UtilidadNeta from './UtilidadNeta';
 import GestionUsuarios from './GestionUsuarios';
 import CuadreCaja from './CuadreCaja';
 import ActivosFijos from './ActivosFijos';
+import NuevaFacturaFactoria from './NuevaFacturaFactoria';
 
 export default function Dashboard({ user, onLogout }) {
   const [activeModule, setActiveModule] = useState('pesadas');
@@ -58,6 +59,8 @@ export default function Dashboard({ user, onLogout }) {
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(null);
   const [selectedPesadas, setSelectedPesadas] = useState([]);
+  const [showNuevaFactura, setShowNuevaFactura] = useState(false);
+  const [editingFactura, setEditingFactura] = useState(null);
   const [showUnificarModal, setShowUnificarModal] = useState(false);
   const [nuevoNombreUnificado, setNuevoNombreUnificado] = useState('');
 
@@ -183,6 +186,25 @@ export default function Dashboard({ user, onLogout }) {
 
     setFilteredPesadas(filtered);
   }, [searchTerm, pesadas, filters]);
+
+  // Estado de pago guardado en localStorage mientras no existan las columnas en BD
+  const getEstadosPago = () => {
+    try {
+      return JSON.parse(localStorage.getItem('pesadas_estados_pago') || '{}');
+    } catch { return {}; }
+  };
+
+  const saveEstadoPago = (id, estado) => {
+    const estados = getEstadosPago();
+    estados[id] = { estado, fecha: estado === 'pagado' ? new Date().toISOString() : null };
+    localStorage.setItem('pesadas_estados_pago', JSON.stringify(estados));
+  };
+
+  const getEstadoPesada = (pesada) => {
+    if (pesada.estado_pago) return pesada.estado_pago;
+    const estados = getEstadosPago();
+    return estados[pesada.id]?.estado || 'pendiente';
+  };
 
   const loadPesadas = async () => {
     setLoading(true);
@@ -445,25 +467,6 @@ export default function Dashboard({ user, onLogout }) {
     }
   };
 
-  // Estado de pago guardado en localStorage mientras no existan las columnas en BD
-  const getEstadosPago = () => {
-    try {
-      return JSON.parse(localStorage.getItem('pesadas_estados_pago') || '{}');
-    } catch { return {}; }
-  };
-
-  const saveEstadoPago = (id, estado) => {
-    const estados = getEstadosPago();
-    estados[id] = { estado, fecha: estado === 'pagado' ? new Date().toISOString() : null };
-    localStorage.setItem('pesadas_estados_pago', JSON.stringify(estados));
-  };
-
-  const getEstadoPesada = (pesada) => {
-    if (pesada.estado_pago) return pesada.estado_pago;
-    const estados = getEstadosPago();
-    return estados[pesada.id]?.estado || 'pendiente';
-  };
-
   const marcarComoPagado = async (id, estadoActual) => {
     const nuevoEstado = estadoActual === 'pagado' ? 'pendiente' : 'pagado';
     const mensaje = nuevoEstado === 'pagado' 
@@ -711,7 +714,21 @@ export default function Dashboard({ user, onLogout }) {
       case 'pesadas':
         return renderPesadasModule();
       case 'facturas-factoria':
-        return <ListaFacturasFactoria user={user} />;
+        if (showNuevaFactura || editingFactura) {
+          return <NuevaFacturaFactoria 
+            user={user} 
+            facturaToEdit={editingFactura} 
+            onBack={() => {
+              setShowNuevaFactura(false);
+              setEditingFactura(null);
+            }} 
+          />;
+        }
+        return <ListaFacturasFactoria 
+          user={user} 
+          onNuevaFactura={() => setShowNuevaFactura(true)}
+          onEditarFactura={(factura) => setEditingFactura(factura)}
+        />;
       case 'comparacion':
         return <ComparacionPesadasFacturas user={user} />;
       case 'flete':
@@ -1050,13 +1067,13 @@ export default function Dashboard({ user, onLogout }) {
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="11" className="px-6 py-8 text-center text-gray-500">
                     Cargando...
                   </td>
                 </tr>
               ) : filteredPesadas.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="11" className="px-6 py-8 text-center text-gray-500">
                     No hay pesadas registradas
                   </td>
                 </tr>

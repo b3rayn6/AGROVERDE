@@ -501,7 +501,7 @@ export default function ListaFacturasFactoria({ user, onNuevaFactura, onEditarFa
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Fanegas</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Valor</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Estado</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Acciones</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 sticky right-0 bg-gray-50 z-10">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -534,8 +534,8 @@ export default function ListaFacturasFactoria({ user, onNuevaFactura, onEditarFa
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
+                      <td className="px-4 py-3 sticky right-0 bg-white z-10">
+                        <div className="flex gap-1">
                           <button
                             onClick={() => marcarComoPagado(factura.id, factura.estado_pago)}
                             className={`p-2 rounded-lg transition-colors ${
@@ -546,22 +546,27 @@ export default function ListaFacturasFactoria({ user, onNuevaFactura, onEditarFa
                             title={factura.estado_pago === 'pagado' ? 'Marcar como pendiente' : 'Marcar como pagado'}
                           >
                             {factura.estado_pago === 'pagado' ? (
-                              <XCircle className="w-4 h-4" />
+                              <XCircle className="w-5 h-5" />
                             ) : (
-                              <CheckCircle className="w-4 h-4" />
+                              <CheckCircle className="w-5 h-5" />
                             )}
                           </button>
                           <button
-                            onClick={() => onEditarFactura(factura)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditarFactura(factura);
+                            }}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Editar factura"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => eliminarFactura(factura.id)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar factura"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
                       </td>
