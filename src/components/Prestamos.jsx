@@ -15,6 +15,8 @@ export default function Prestamos() {
   const [pagosPrestamo, setPagosPrestamo] = useState([]);
   const [loading, setLoading] = useState(false);
   const [nuevaTasa, setNuevaTasa] = useState('');
+  const [nuevaFechaPrestamo, setNuevaFechaPrestamo] = useState('');
+  const [nuevaFechaVencimiento, setNuevaFechaVencimiento] = useState('');
   
   const [filtros, setFiltros] = useState({
     busqueda: '',
@@ -435,6 +437,8 @@ export default function Prestamos() {
   const abrirEditarTasa = (prestamo) => {
     setPrestamoSeleccionado(prestamo);
     setNuevaTasa(prestamo.tasa_interes);
+    setNuevaFechaPrestamo(prestamo.fecha_prestamo);
+    setNuevaFechaVencimiento(prestamo.fecha_vencimiento);
     setShowEditTasaModal(true);
   };
 
@@ -442,19 +446,38 @@ export default function Prestamos() {
     e.preventDefault();
     setLoading(true);
 
+    // Recalcular interés y total con las nuevas fechas
+    const fechaPrestamo = new Date(nuevaFechaPrestamo);
+    const fechaVencimiento = new Date(nuevaFechaVencimiento);
+    const diasReales = Math.floor((fechaVencimiento - fechaPrestamo) / (1000 * 60 * 60 * 24));
+    
+    const monto = parseFloat(prestamoSeleccionado.monto_prestado);
+    const tasa = parseFloat(nuevaTasa);
+    const interesMensual = monto * (tasa / 100);
+    const interesDiario = interesMensual / 30;
+    const interesGenerado = interesDiario * diasReales;
+    const totalPagar = monto + interesGenerado;
+
     const { error } = await supabase
       .from('financiamientos')
-      .update({ tasa_interes: nuevaTasa })
+      .update({ 
+        tasa_interes: nuevaTasa,
+        fecha_prestamo: nuevaFechaPrestamo,
+        fecha_vencimiento: nuevaFechaVencimiento,
+        interes_generado: interesGenerado,
+        total_pagar: totalPagar,
+        balance_pendiente: totalPagar
+      })
       .eq('id', prestamoSeleccionado.id);
 
     setLoading(false);
 
     if (error) {
-      alert('Error al actualizar la tasa de interés');
+      alert('Error al actualizar el financiamiento');
       return;
     }
 
-    alert('Tasa de interés actualizada exitosamente');
+    alert('Financiamiento actualizado exitosamente');
     setShowEditTasaModal(false);
     cargarPrestamos();
   };
@@ -1152,7 +1175,7 @@ export default function Prestamos() {
             <div className="bg-white rounded-lg max-w-md w-full">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-800">Editar Tasa de Interés</h2>
+                  <h2 className="text-2xl font-bold text-gray-800">Editar Financiamiento</h2>
                   <button onClick={() => setShowEditTasaModal(false)} className="text-gray-500 hover:text-gray-700">
                     <X className="w-6 h-6" />
                   </button>
@@ -1169,14 +1192,25 @@ export default function Prestamos() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tasa Actual</label>
-                    <input
-                      type="text"
-                      value={`${prestamoSeleccionado.tasa_interes}%`}
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Monto Prestado</label>
+                      <input
+                        type="text"
+                        value={formatMoney(prestamoSeleccionado.monto_prestado)}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tasa Actual</label>
+                      <input
+                        type="text"
+                        value={`${prestamoSeleccionado.tasa_interes}%`}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -1191,13 +1225,72 @@ export default function Prestamos() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Fecha Préstamo *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={nuevaFechaPrestamo}
+                        onChange={(e) => setNuevaFechaPrestamo(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Fecha Vencimiento *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={nuevaFechaVencimiento}
+                        onChange={(e) => setNuevaFechaVencimiento(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Vista previa de cálculos */}
+                  {nuevaTasa && nuevaFechaPrestamo && nuevaFechaVencimiento && (() => {
+                    const fechaPrestamo = new Date(nuevaFechaPrestamo);
+                    const fechaVencimiento = new Date(nuevaFechaVencimiento);
+                    const diasReales = Math.floor((fechaVencimiento - fechaPrestamo) / (1000 * 60 * 60 * 24));
+                    const monto = parseFloat(prestamoSeleccionado.monto_prestado);
+                    const tasa = parseFloat(nuevaTasa);
+                    const interesMensual = monto * (tasa / 100);
+                    const interesDiario = interesMensual / 30;
+                    const interesGenerado = interesDiario * diasReales;
+                    const totalPagar = monto + interesGenerado;
+
+                    return (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                        <p className="text-sm font-semibold text-blue-800 flex items-center gap-1">
+                          <AlertCircle className="w-4 h-4" />
+                          Vista Previa de Cálculos
+                        </p>
+                        <div className="text-xs text-blue-700 space-y-1">
+                          <p>Días del préstamo: <span className="font-semibold">{diasReales} días</span></p>
+                          <p>Interés diario: <span className="font-semibold">{formatMoney(interesDiario)}</span></p>
+                          <p>Interés generado: <span className="font-semibold">{formatMoney(interesGenerado)}</span></p>
+                          <p className="text-sm font-bold text-blue-900 pt-1 border-t border-blue-300">
+                            Total a pagar: {formatMoney(totalPagar)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div className="flex gap-3 pt-4">
                     <button
                       type="submit"
                       disabled={loading}
                       className="flex-1 bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50"
                     >
-                      {loading ? 'Guardando...' : 'Actualizar Tasa'}
+                      {loading ? 'Guardando...' : 'Actualizar Financiamiento'}
                     </button>
                     <button
                       type="button"
