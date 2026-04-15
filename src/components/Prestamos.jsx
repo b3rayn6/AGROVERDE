@@ -544,7 +544,6 @@ export default function Prestamos() {
     const tableData = totales.prestamos.map(p => [
       new Date(p.fecha_prestamo).toLocaleDateString(),
       `${formatMoney(p.monto_prestado)}`,
-      `${p.tasa_interes}%`,
       `${formatMoney(p.interes_generado)}`,
       `${formatMoney(p.total_pagar)}`,
       `${formatMoney(p.balance_pendiente)}`
@@ -552,17 +551,16 @@ export default function Prestamos() {
 
     doc.autoTable({
       startY: 120,
-      head: [['Fecha', 'Monto', 'Tasa', 'Interés', 'Total', 'Balance']],
+      head: [['Fecha', 'Monto', 'Interés', 'Total', 'Balance']],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [34, 197, 94], textColor: 255, fontStyle: 'bold' },
       styles: { fontSize: 9, cellPadding: 3 },
       columnStyles: {
         1: { halign: 'right' },
-        2: { halign: 'center' },
-        3: { halign: 'right' },
-        4: { halign: 'right', fontStyle: 'bold' },
-        5: { halign: 'right', fontStyle: 'bold' }
+        2: { halign: 'right' },
+        3: { halign: 'right', fontStyle: 'bold' },
+        4: { halign: 'right', fontStyle: 'bold' }
       }
     });
 
@@ -635,7 +633,6 @@ export default function Prestamos() {
       p.nombre_cliente || 'N/A',
       new Date(p.fecha_prestamo).toLocaleDateString(),
       `${formatMoney(p.monto_prestado)}`,
-      `${p.tasa_interes}%`,
       `${formatMoney(p.interes_generado)}`,
       `${formatMoney(p.total_pagar)}`,
       `${formatMoney(p.balance_pendiente)}`,
@@ -644,17 +641,16 @@ export default function Prestamos() {
 
     doc.autoTable({
       startY: 105,
-      head: [['Cliente', 'Fecha', 'Monto', 'Tasa', 'Interés', 'Total', 'Balance', 'Estado']],
+      head: [['Cliente', 'Fecha', 'Monto', 'Interés', 'Total', 'Balance', 'Estado']],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [34, 197, 94], textColor: 255, fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 2 },
       columnStyles: {
         2: { halign: 'right' },
-        3: { halign: 'center' },
-        4: { halign: 'right' },
-        5: { halign: 'right', fontStyle: 'bold' },
-        6: { halign: 'right', fontStyle: 'bold' }
+        3: { halign: 'right' },
+        4: { halign: 'right', fontStyle: 'bold' },
+        5: { halign: 'right', fontStyle: 'bold' }
       }
     });
 
