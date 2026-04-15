@@ -201,31 +201,46 @@ export default function NuevaPesada({ onClose, onSuccess, user, isModal = true }
 
   return (
     <>
-      <div className={isModal ? "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" : "w-full max-w-4xl mx-auto my-8"}>
-        <div className={`bg-white rounded-2xl shadow-xl w-full ${isModal ? 'max-w-4xl max-h-[90vh]' : ''} overflow-y-auto`}>
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-800">Nueva Pesada</h2>
+      <div className={isModal ? "fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn" : "w-full max-w-4xl mx-auto my-8"}>
+        <div className={`bg-gradient-to-br from-white via-gray-50 to-white rounded-3xl shadow-2xl w-full ${isModal ? 'max-w-5xl max-h-[90vh]' : ''} overflow-hidden border border-gray-200 animate-scaleIn`}>
+          <div className="sticky top-0 bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 px-8 py-5 flex items-center justify-between shadow-lg relative overflow-hidden animate-gradient bg-[length:200%_100%]">
+            <div className="absolute inset-0 bg-white opacity-10"></div>
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm shadow-lg hover-scale">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white drop-shadow-lg">Nueva Pesada</h2>
+                <p className="text-green-100 text-sm drop-shadow">Registro de pesada de arroz</p>
+              </div>
+            </div>
             {isModal && (
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 group relative z-10 hover-scale"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
               </button>
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6">
+          <div className="overflow-y-auto max-h-[calc(90vh-88px)] scrollbar-modal">
+          <form onSubmit={handleSubmit} className="p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="group">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
                   Fecha
                 </label>
                 <input
                   type="date"
                   value={formData.fecha}
                   onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 group-hover:border-gray-300 hover:shadow-md"
                   required
                 />
               </div>
@@ -357,14 +372,20 @@ export default function NuevaPesada({ onClose, onSuccess, user, isModal = true }
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Kilos Neto (Calculado)
+              <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 rounded-xl p-4 border-2 border-purple-300 shadow-md hover-lift">
+                <label className="block text-sm font-semibold text-purple-700 mb-2 flex items-center gap-2">
+                  <div className="p-1 bg-purple-200 rounded-lg">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  Kilos Neto
+                  <span className="ml-auto text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full font-bold">Calculado</span>
                 </label>
                 <input
                   type="text"
                   value={kilosNeto.toFixed(2)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                  className="w-full px-4 py-3 border-2 border-purple-300 rounded-xl bg-white font-bold text-purple-900 text-lg shadow-inner"
                   readOnly
                 />
               </div>
@@ -384,14 +405,21 @@ export default function NuevaPesada({ onClose, onSuccess, user, isModal = true }
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fanegas (Calculado)
+              <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 rounded-xl p-4 border-2 border-purple-300 shadow-md hover-lift">
+                <label className="block text-sm font-semibold text-purple-700 mb-2 flex items-center gap-2">
+                  <div className="p-1 bg-purple-200 rounded-lg">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                      <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  Fanegas
+                  <span className="ml-auto text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full font-bold">Calculado</span>
                 </label>
                 <input
                   type="text"
                   value={fanegas.toFixed(2)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                  className="w-full px-4 py-3 border-2 border-purple-300 rounded-xl bg-white font-bold text-purple-900 text-lg shadow-inner"
                   readOnly
                 />
               </div>
@@ -411,14 +439,20 @@ export default function NuevaPesada({ onClose, onSuccess, user, isModal = true }
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Valor Total (Calculado)
+              <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50 rounded-xl p-4 border-2 border-amber-300 shadow-md hover-lift">
+                <label className="block text-sm font-semibold text-amber-700 mb-2 flex items-center gap-2">
+                  <div className="p-1 bg-amber-200 rounded-lg">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  Valor Total
+                  <span className="ml-auto text-xs bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full font-bold">Calculado</span>
                 </label>
                 <input
                   type="text"
                   value={formatCurrency(valorTotal)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 font-medium"
+                  className="w-full px-4 py-3 border-2 border-amber-300 rounded-xl bg-white font-bold text-amber-900 text-xl shadow-inner"
                   readOnly
                 />
               </div>
@@ -470,32 +504,52 @@ export default function NuevaPesada({ onClose, onSuccess, user, isModal = true }
             </div>
 
             {error && (
-              <div className={`mt-6 px-4 py-3 rounded-lg text-sm ${error.includes('localmente')
-                ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                : 'bg-red-50 text-red-600'
+              <div className={`mt-6 px-5 py-4 rounded-xl text-sm flex items-start gap-3 animate-scaleIn shadow-lg ${error.includes('localmente')
+                ? 'bg-gradient-to-r from-orange-50 via-amber-50 to-yellow-50 text-orange-800 border-2 border-orange-300'
+                : 'bg-gradient-to-r from-red-50 via-rose-50 to-pink-50 text-red-700 border-2 border-red-300'
                 }`}>
-                {error}
+                <div className={`p-2 rounded-lg ${error.includes('localmente') ? 'bg-orange-200' : 'bg-red-200'}`}>
+                  <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="flex-1 font-medium">{error}</span>
               </div>
             )}
 
-            <div className="flex gap-4 mt-8">
+            <div className="flex gap-4 mt-8 pt-6 border-t-2 border-gray-200">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 hover:border-gray-400 hover:shadow-md transition-all duration-200 font-semibold flex items-center justify-center gap-2 group"
               >
-                {isModal ? 'Cancelar' : 'Limpiar Formulario'}
+                <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span className="group-hover:scale-105 transition-transform">{isModal ? 'Cancelar' : 'Limpiar Formulario'}</span>
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 hover:from-green-700 hover:via-emerald-700 hover:to-green-700 text-white px-6 py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-lg hover:shadow-2xl hover:scale-105 group relative overflow-hidden animate-gradient bg-[length:200%_100%]"
               >
-                <Save className="w-5 h-5" />
-                {loading ? 'Guardando...' : 'Guardar Pesada'}
+                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+                <Save className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300 relative z-10" />
+                <span className="relative z-10">
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Guardando...
+                    </span>
+                  ) : 'Guardar Pesada'}
+                </span>
               </button>
             </div>
           </form>
+          </div>
         </div>
       </div>
 

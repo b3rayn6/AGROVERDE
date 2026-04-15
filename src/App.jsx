@@ -24,9 +24,11 @@ import UtilidadNeta from './components/UtilidadNeta';
 import LibroDiario from './components/LibroDiario';
 import CuadreCaja from './components/CuadreCaja';
 import Gastos from './components/Gastos';
-import ActivosFijos from './components/ActivosFijos';
+import Servidor from './components/Servidor';
+import BaseDatos from './components/BaseDatos';
+import AsistenteIA from './components/AsistenteIA';
 import NuevaPesada from './components/NuevaPesada';
-import { FileText, Scale, GitCompare, Truck, Users, DollarSign, LogOut, Package, ShoppingCart, Building2, Receipt, UserCheck, Store, CreditCard, Wallet, TrendingUp, Settings, BookOpen, Calculator, Building } from 'lucide-react';
+import { FileText, Scale, GitCompare, Truck, Users, DollarSign, LogOut, Package, ShoppingCart, Building2, Receipt, UserCheck, Store, CreditCard, Wallet, TrendingUp, Settings, BookOpen, Calculator, Building, Server, Database, Sparkles } from 'lucide-react';
 export default function App() {
   const [user, setUser] = useState(null);
   const [mode, setMode] = useState('login');
@@ -321,14 +323,37 @@ export default function App() {
       icon: Building,
       codigo: 'activos_fijos'
     }, {
+      id: 'servidor',
+      name: 'Servidor',
+      icon: Server,
+      codigo: 'servidor'
+    }, {
+      id: 'base-datos',
+      name: 'Base de Datos',
+      icon: Database,
+      codigo: 'base_datos'
+    }, {
       id: 'usuarios',
       name: 'Usuarios',
       icon: Settings,
       codigo: 'gestion_usuarios'
     }];
 
+    console.log('🚀 App.jsx (src) cargado - CON Servidor y Base de Datos');
+    console.log('📋 Total módulos definidos:', todosLosModulos.length);
+
     // Filtrar módulos según permisos
-    const navigation = todosLosModulos.filter(modulo => tienePermiso(modulo.codigo, 'puede_ver'));
+    const navigation = todosLosModulos.filter(modulo => {
+      // Módulos de Servidor y Base de Datos siempre visibles
+      if (modulo.codigo === 'servidor' || modulo.codigo === 'base_datos') {
+        console.log('✅ Módulo de sistema incluido:', modulo.name);
+        return true;
+      }
+      return tienePermiso(modulo.codigo, 'puede_ver');
+    });
+
+    console.log('📋 Total módulos en navegación:', navigation.length);
+    console.log('📋 Módulos visibles:', navigation.map(m => m.name).join(', '));
 
     // Si estamos creando/editando una factura
     if (showNuevaFactura || editingFactura) {
@@ -383,6 +408,16 @@ export default function App() {
                     <span className="hidden sm:inline">{item.name}</span>
                   </button>;
             })}
+              
+              {/* Botón de Asistente IA */}
+              <button 
+                onClick={() => setActiveModule('asistente-ia')} 
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ml-auto ${activeModule === 'asistente-ia' ? 'border-purple-600 text-purple-600 bg-purple-50' : 'border-transparent text-purple-600 hover:text-purple-700 hover:bg-purple-50'}`}
+              >
+                <Sparkles className="w-5 h-5 animate-pulse" />
+                <span>Agroverde AI</span>
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce"></div>
+              </button>
             </nav>
           </div>
         </header>
@@ -433,7 +468,13 @@ export default function App() {
 
         {activeModule === 'activos-fijos' && <ActivosFijos user={user} />}
 
+        {activeModule === 'servidor' && <Servidor user={user} onClose={() => setActiveModule('pesadas')} />}
+
+        {activeModule === 'base-datos' && <BaseDatos user={user} onClose={() => setActiveModule('pesadas')} />}
+
         {activeModule === 'usuarios' && <GestionUsuarios user={user} />}
+
+        {activeModule === 'asistente-ia' && <AsistenteIA user={user} onClose={() => setActiveModule('pesadas')} />}
       </div>;
   }
   if (mode === 'register') {

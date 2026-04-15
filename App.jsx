@@ -25,7 +25,13 @@ import LibroDiario from './components/LibroDiario';
 import CuadreCaja from './components/CuadreCaja';
 import Gastos from './components/Gastos';
 import ActivosFijos from './components/ActivosFijos';
-import { FileText, Scale, GitCompare, Truck, Users, DollarSign, LogOut, Package, ShoppingCart, Building2, Receipt, UserCheck, Store, CreditCard, Wallet, TrendingUp, Settings, BookOpen, Calculator, Building } from 'lucide-react';
+import AsistenteIA from './components/AsistenteIA';
+import Servidor from './src/components/Servidor';
+import BaseDatos from './src/components/BaseDatos';
+import AIChatbot from './components/AIChatbot';
+import AIChatbotTest from './components/AIChatbotTest';
+import ChatbotSimple from './components/ChatbotSimple';
+import { FileText, Scale, GitCompare, Truck, Users, DollarSign, LogOut, Package, ShoppingCart, Building2, Receipt, UserCheck, Store, CreditCard, Wallet, TrendingUp, Settings, BookOpen, Calculator, Building, Server, Database, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -34,6 +40,10 @@ export default function App() {
   const [showNuevaFactura, setShowNuevaFactura] = useState(false);
   const [editingFactura, setEditingFactura] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // 🔄 VERSION: 2024-04-14-v3 - Servidor y Base de Datos siempre visibles
+  console.log('🚀 App.jsx cargado - Versión: 2024-04-14-v3');
 
   // Cargar sesión guardada al iniciar
   useEffect(() => {
@@ -121,6 +131,9 @@ export default function App() {
     const tienePermiso = (codigoModulo, accion = 'puede_ver') => {
       // Usuarios legacy tienen acceso completo
       if (user.tipo === 'legacy') return true;
+      
+      // Usuarios sistema tienen acceso completo (temporal para testing)
+      if (user.tipo === 'sistema') return true;
 
       // Buscar permiso específico
       const permiso = user.permisos?.find(p => p.modulos?.codigo === codigoModulo);
@@ -162,11 +175,23 @@ export default function App() {
       { id: 'cuadre-caja', name: 'Cuadre de Caja', icon: Calculator, codigo: 'cuadre_caja' },
       { id: 'gastos', name: 'Egresos/Gastos', icon: Receipt, codigo: 'gastos' },
       { id: 'activos-fijos', name: 'Activos Fijos', icon: Building, codigo: 'activos_fijos' },
+      { id: 'servidor', name: 'Servidor', icon: Server, codigo: 'servidor' },
+      { id: 'base-datos', name: 'Base de Datos', icon: Database, codigo: 'base_datos' },
       { id: 'usuarios', name: 'Usuarios', icon: Settings, codigo: 'gestion_usuarios' }
     ];
 
     // Filtrar módulos según permisos
-    const navigation = todosLosModulos.filter(modulo => tienePermiso(modulo.codigo, 'puede_ver'));
+    const navigation = todosLosModulos.filter(modulo => {
+      // Módulos de Servidor y Base de Datos siempre visibles para TODOS
+      if (modulo.codigo === 'servidor' || modulo.codigo === 'base_datos') {
+        console.log('✅ Módulo de sistema incluido:', modulo.name);
+        return true;
+      }
+      return tienePermiso(modulo.codigo, 'puede_ver');
+    });
+
+    console.log('📋 Total de módulos en navegación:', navigation.length);
+    console.log('📋 Módulos disponibles:', navigation.map(m => m.name).join(', '));
 
     // Si estamos creando/editando una factura
     if (showNuevaFactura || editingFactura) {
@@ -183,59 +208,167 @@ export default function App() {
     }
 
     return (
-      <div className="overflow-x-hidden max-w-full w-full">
-        {/* Header con navegación */}
-        <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-200 overflow-x-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-            <div className="flex items-center justify-between py-4">
-              <div className="flex items-center gap-3">
-                <img
-                  src="https://sensible-spoonbill-485.convex.cloud/api/storage/12b5938f-3d8e-4f35-b6be-06dc9d878d6d"
-                  alt="AGV AGROVERDE Logo"
-                  className="h-16 w-auto object-contain"
-                />
-                <div>
-                  <h1 className="text-xl font-bold text-gray-800">AGROVERDE/AGVSRL</h1>
-                  <p className="text-xs text-gray-500">Sistema de Gestión</p>
+      <>
+        <div className="flex h-screen overflow-hidden bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200">
+        {/* Sidebar lateral izquierdo - Nuevo diseño moderno */}
+        <aside className={`fixed left-0 top-0 h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-2xl transition-all duration-300 z-50 backdrop-blur-xl ${
+          sidebarCollapsed ? 'w-20' : 'w-80'
+        }`}>
+          {/* Efecto de brillo superior */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500"></div>
+          
+          {/* Header del sidebar */}
+          <div className="p-5 border-b border-slate-700/50 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              {!sidebarCollapsed && (
+                <div className="flex items-center gap-3">
+                  <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-xl shadow-lg ring-2 ring-emerald-400/30">
+                    <img
+                      src="https://sensible-spoonbill-485.convex.cloud/api/storage/12b5938f-3d8e-4f35-b6be-06dc9d878d6d"
+                      alt="AGV Logo"
+                      className="h-10 w-auto object-contain"
+                    />
+                  </div>
+                  <div>
+                    <h1 className="text-base font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                      AGROVERDE
+                    </h1>
+                    <p className="text-xs text-slate-400 font-medium">Sistema de Gestión</p>
+                  </div>
                 </div>
-              </div>
-
+              )}
               <button
-                onClick={() => {
-                  localStorage.removeItem('user_session');
-                  setUser(null);
-                }}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="p-2 hover:bg-slate-700/50 rounded-lg transition-all duration-200 hover:scale-110 group"
               >
-                <LogOut className="w-5 h-5" />
-                <span className="hidden sm:inline">Salir</span>
+                <svg className={`w-5 h-5 transition-transform duration-300 group-hover:text-emerald-400 ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
               </button>
             </div>
-
-            {/* Menú de navegación */}
-            <nav className="flex gap-1 -mb-px overflow-x-auto overflow-y-hidden scrollbar-hide">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeModule === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveModule(item.id)}
-                    className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${isActive
-                      ? 'border-green-600 text-green-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'
-                      }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="hidden sm:inline">{item.name}</span>
-                  </button>
-                );
-              })}
-            </nav>
           </div>
-        </header>
 
-        {/* Contenido del módulo activo */}
+          {/* Información del usuario */}
+          {!sidebarCollapsed && (
+            <div className="p-4 mx-3 mt-3 bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl border border-slate-700/50 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center font-bold text-lg shadow-lg">
+                    {(user.nombre || user.username)?.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-800 animate-pulse"></div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate text-white">{user.nombre || user.username}</p>
+                  <p className="text-xs text-emerald-400 truncate font-medium">{user.roles?.nombre || user.tipo}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Navegación */}
+          <nav className="flex-1 overflow-y-auto scrollbar-custom p-3 space-y-1.5 mt-2" style={{ maxHeight: 'calc(100vh - 240px)' }}>
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeModule === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveModule(item.id)}
+                  className={`group w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium text-sm transition-all duration-300 relative overflow-hidden ${
+                    isActive
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 scale-[1.02]'
+                      : 'text-slate-300 hover:bg-slate-800/50 hover:text-white hover:translate-x-1 hover:shadow-md'
+                  }`}
+                  title={sidebarCollapsed ? item.name : ''}
+                >
+                  {/* Efecto de brillo en hover */}
+                  {!isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  )}
+                  
+                  <div className={`relative ${isActive ? 'animate-pulse' : ''}`}>
+                    <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'drop-shadow-lg' : 'group-hover:scale-110 transition-transform duration-200'}`} />
+                  </div>
+                  
+                  {!sidebarCollapsed && (
+                    <span className="truncate relative z-10">{item.name}</span>
+                  )}
+                  
+                  {isActive && !sidebarCollapsed && (
+                    <div className="ml-auto flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse delay-75"></div>
+                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse delay-150"></div>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Footer del sidebar */}
+          <div className="p-3 border-t border-slate-700/50 backdrop-blur-sm">
+            <button
+              onClick={() => {
+                localStorage.removeItem('user_session');
+                setUser(null);
+              }}
+              className="group w-full flex items-center gap-3 px-4 py-3.5 text-slate-300 hover:bg-gradient-to-r hover:from-red-600 hover:to-red-700 hover:text-white rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-red-500/30 relative overflow-hidden"
+              title={sidebarCollapsed ? 'Cerrar Sesión' : ''}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <LogOut className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform duration-200 relative z-10" />
+              {!sidebarCollapsed && <span className="font-medium relative z-10">Cerrar Sesión</span>}
+            </button>
+          </div>
+        </aside>
+
+        {/* Contenedor principal */}
+        <div className={`flex-1 flex flex-col transition-all duration-300 ${
+          sidebarCollapsed ? 'ml-20' : 'ml-80'
+        }`}>
+          {/* Header superior - Nuevo diseño */}
+          <header className="bg-white/80 backdrop-blur-xl shadow-sm border-b border-slate-200/50 px-6 py-5 sticky top-0 z-40">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  {navigation.find(item => item.id === activeModule)?.icon && 
+                    (() => {
+                      const Icon = navigation.find(item => item.id === activeModule).icon;
+                      return <Icon className="w-6 h-6 text-white" />;
+                    })()
+                  }
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                    {navigation.find(item => item.id === activeModule)?.name || 'Dashboard'}
+                  </h2>
+                  <p className="text-sm text-slate-500 font-medium">Gestión y administración del módulo</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="px-4 py-2 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-200/50">
+                  <p className="text-sm text-slate-700 font-medium">
+                    {new Date().toLocaleDateString('es-DO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+                
+                {/* Botón de Asistente IA */}
+                <button
+                  onClick={() => setActiveModule('asistente-ia')}
+                  className="group relative px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2"
+                >
+                  <Sparkles className="w-5 h-5 animate-pulse" />
+                  <span className="font-semibold">Asistente IA</span>
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-bounce"></div>
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* Contenido del módulo activo */}
+          <main className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200">
         {activeModule === 'pesadas' && (
           <Dashboard user={user} onLogout={() => {
             localStorage.removeItem('user_session');
@@ -327,10 +460,25 @@ export default function App() {
           <ActivosFijos user={user} />
         )}
 
+        {activeModule === 'asistente-ia' && (
+          <AsistenteIA user={user} />
+        )}
+
+        {activeModule === 'servidor' && (
+          <Servidor user={user} />
+        )}
+
+        {activeModule === 'base-datos' && (
+          <BaseDatos user={user} />
+        )}
+
         {activeModule === 'usuarios' && (
           <GestionUsuarios user={user} />
         )}
+          </main>
+        </div>
       </div>
+      </>
     );
   }
 

@@ -7,6 +7,7 @@ import { generarPDFFletes } from '../lib/pdfGenerator';
 export default function RegistroFlete({ user }) {
   const [fletes, setFletes] = useState([]);
   const [choferes, setChoferes] = useState([]);
+  const [productores, setProductores] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [choferFiltro, setChoferFiltro] = useState('');
@@ -31,6 +32,7 @@ export default function RegistroFlete({ user }) {
     if (user?.id) {
       cargarFletes();
       cargarChoferes();
+      cargarProductores();
     }
   }, [user]);
 
@@ -142,6 +144,50 @@ export default function RegistroFlete({ user }) {
     }
   };
 
+  const cargarProductores = async () => {
+    if (!user?.id) return;
+    
+    try {
+      // Obtener productores únicos de la tabla pesadas
+      const { data: productoresPesadas, error: errorPesadas } = await supabase
+        .from('pesadas')
+        .select('nombre_productor')
+        .not('nombre_productor', 'eq', null);
+
+      // Obtener productores únicos de la tabla fletes
+      const { data: productoresFletes, error: errorFletes } = await supabase
+        .from('fletes')
+        .select('productor')
+        .not('productor', 'eq', null);
+
+      // Unificar todos los productores y eliminar duplicados
+      const productoresSet = new Set();
+
+      // Agregar productores de pesadas
+      (productoresPesadas || []).forEach(p => {
+        if (p.nombre_productor && p.nombre_productor.trim()) {
+          productoresSet.add(p.nombre_productor.trim());
+        }
+      });
+
+      // Agregar productores de fletes
+      (productoresFletes || []).forEach(p => {
+        if (p.productor && p.productor.trim()) {
+          productoresSet.add(p.productor.trim());
+        }
+      });
+
+      // Convertir el Set a array y ordenar alfabéticamente
+      const productoresUnificados = Array.from(productoresSet)
+        .sort((a, b) => a.localeCompare(b));
+
+      console.log('Productores cargados:', productoresUnificados.length, productoresUnificados);
+      setProductores(productoresUnificados);
+    } catch (error) {
+      console.error('Error al cargar productores:', error);
+    }
+  };
+
   const calcularValorTotal = () => {
     const sacos = parseFloat(formData.cantidad_sacos) || 0;
     const precio = parseFloat(formData.precio_flete) || 0;
@@ -235,6 +281,7 @@ export default function RegistroFlete({ user }) {
       setMostrarFormulario(false);
       cargarFletes();
       cargarChoferes();
+      cargarProductores();
     } catch (error) {
       console.error('Error:', error);
       alert('Error al guardar el flete: ' + error.message);
@@ -403,14 +450,23 @@ export default function RegistroFlete({ user }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Productor</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Productor {productores.length > 0 && <span className="text-xs text-green-600">({productores.length} disponibles)</span>}
+              </label>
               <input
                 type="text"
+                list="productores-list"
                 value={formData.productor}
                 onChange={(e) => setFormData({ ...formData, productor: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder={productores.length > 0 ? "Escribe o selecciona un productor..." : "Escribe el nombre del productor..."}
                 required
               />
+              <datalist id="productores-list">
+                {productores.map((productor, index) => (
+                  <option key={index} value={productor} />
+                ))}
+              </datalist>
             </div>
 
             <div>

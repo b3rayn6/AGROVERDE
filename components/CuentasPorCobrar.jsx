@@ -4,6 +4,7 @@ import { DollarSign, Search, AlertCircle, CheckCircle, Calendar, FileText, Users
 import { generarPDFCuentasPorCobrar } from '../lib/pdfGeneratorExtras';
 import { formatearFechaLocal } from '../lib/dateUtils';
 import { formatCurrency } from '../lib/formatters';
+import SearchableSelect from './SearchableSelect';
 
 export default function CuentasPorCobrar() {
   const [cuentas, setCuentas] = useState([]);

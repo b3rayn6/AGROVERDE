@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { FileText, Plus, DollarSign, Printer, Eye, Edit2, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../lib/formatters';
 import { generarPDFFacturasCompra } from '../lib/pdfGenerator';
+import SearchableSelect from './SearchableSelect';
 
 export default function FacturasCompra() {
   const [facturas, setFacturas] = useState([]);
@@ -854,17 +855,17 @@ export default function FacturasCompra() {
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">Suplidor *</label>
-                      <select
-                        required
+                      <SearchableSelect
+                        options={suplidores}
                         value={formData.suplidor_id}
-                        onChange={(e) => setFormData({...formData, suplidor_id: e.target.value})}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                      >
-                        <option value="">Seleccionar...</option>
-                        {suplidores.map(s => (
-                          <option key={s.id} value={s.id}>{s.nombre}</option>
-                        ))}
-                      </select>
+                        onChange={(value) => setFormData({...formData, suplidor_id: value})}
+                        placeholder="Seleccione un suplidor"
+                        searchPlaceholder="Buscar suplidor por nombre o RNC..."
+                        displayField="nombre"
+                        valueField="id"
+                        secondaryField="rnc"
+                        required
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">Fecha *</label>
@@ -961,17 +962,17 @@ export default function FacturasCompra() {
                         </button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <select
-                          required
+                        <SearchableSelect
+                          options={mercancias}
                           value={item.mercancia_id}
-                          onChange={(e) => actualizarItem(index, 'mercancia_id', e.target.value)}
-                          className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white"
-                        >
-                          <option value="">Producto...</option>
-                          {mercancias.map(m => (
-                            <option key={m.id} value={m.id}>{m.nombre}</option>
-                          ))}
-                        </select>
+                          onChange={(value) => actualizarItem(index, 'mercancia_id', value)}
+                          placeholder="Seleccione producto..."
+                          searchPlaceholder="Buscar producto..."
+                          displayField="nombre"
+                          valueField="id"
+                          secondaryField="codigo"
+                          required
+                        />
                         <input
                           type="number"
                           required

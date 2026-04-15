@@ -5,6 +5,7 @@ import { generarPDFFacturaVenta } from '../lib/pdfFacturaVenta';
 import { getFechaActual, formatearFechaLocal } from '../lib/dateUtils';
 import { formatCurrency } from '../lib/formatters';
 import FirmaDigital from './FirmaDigital';
+import SearchableSelect from './SearchableSelect';
 
 export default function FacturasVenta() {
   const [facturas, setFacturas] = useState([]);
@@ -1353,16 +1354,17 @@ export default function FacturasVenta() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Cliente *</label>
-                    <select
+                    <SearchableSelect
+                      options={clientes}
                       value={nuevaFactura.cliente_id}
-                      onChange={(e) => setNuevaFactura({ ...nuevaFactura, cliente_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="">Seleccione un cliente</option>
-                      {clientes.map(c => (
-                        <option key={c.id} value={c.id}>{c.nombre}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => setNuevaFactura({ ...nuevaFactura, cliente_id: value })}
+                      placeholder="Seleccione un cliente"
+                      searchPlaceholder="Buscar cliente por nombre o cédula..."
+                      displayField="nombre"
+                      valueField="id"
+                      secondaryField="cedula"
+                      required
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Fecha *</label>
@@ -1496,45 +1498,30 @@ export default function FacturasVenta() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-3 sm:mb-4">
                     <div className="sm:col-span-2">
                       <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Producto</label>
-                      {/* Buscador de productos */}
-                      <div className="relative mb-2">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <input
-                          type="text"
-                          placeholder="Buscar por nombre o código..."
-                          value={busquedaProducto}
-                          onChange={(e) => setBusquedaProducto(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                        />
-                      </div>
-                      <select
+                      <SearchableSelect
+                        options={mercancias}
                         value={nuevoItem.mercancia_id}
-                        onChange={(e) => {
-                          const mercancia = mercancias.find(m => m.id === parseInt(e.target.value));
+                        onChange={(value) => {
+                          const mercancia = mercancias.find(m => m.id === parseInt(value));
                           setNuevoItem({
                             ...nuevoItem,
-                            mercancia_id: e.target.value,
+                            mercancia_id: value,
                             precio_unitario: '' // Resetear precio para forzar selección
                           });
-                          setBusquedaProducto(''); // Limpiar búsqueda al seleccionar
                         }}
-                        className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                      >
-                        <option value="">Seleccione un producto</option>
-                        {mercancias
-                          .filter(m => {
-                            const searchTerm = busquedaProducto.toLowerCase();
-                            return (
-                              m.nombre.toLowerCase().includes(searchTerm) ||
-                              (m.codigo && m.codigo.toLowerCase().includes(searchTerm))
-                            );
-                          })
-                          .map(m => (
-                            <option key={m.id} value={m.id}>
-                              {m.codigo ? `[${m.codigo}] ` : ''}{m.nombre} - Stock: {m.stock_actual} {m.unidad_medida}
-                            </option>
-                          ))}
-                      </select>
+                        placeholder="Seleccione un producto"
+                        searchPlaceholder="Buscar por nombre o código..."
+                        displayField="nombre"
+                        valueField="id"
+                        secondaryField="codigo"
+                        className="mb-2"
+                      />
+                      <p className="text-xs text-gray-500">
+                        {nuevoItem.mercancia_id && (() => {
+                          const m = mercancias.find(m => m.id === parseInt(nuevoItem.mercancia_id));
+                          return m ? `Stock: ${m.stock_actual} ${m.unidad_medida}` : '';
+                        })()}
+                      </p>
                     </div>
                     <div>
                       <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Nivel de Precio</label>
