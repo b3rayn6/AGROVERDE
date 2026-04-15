@@ -24,6 +24,7 @@ import UtilidadNeta from './components/UtilidadNeta';
 import LibroDiario from './components/LibroDiario';
 import CuadreCaja from './components/CuadreCaja';
 import Gastos from './components/Gastos';
+import ActivosFijos from './components/ActivosFijos';
 import Servidor from './components/Servidor';
 import BaseDatos from './components/BaseDatos';
 import AsistenteIA from './components/AsistenteIA';
