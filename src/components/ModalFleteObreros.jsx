@@ -19,9 +19,12 @@ export default function ModalFleteObreros({ pesada, user, onClose, onSuccess }) 
   const [error, setError] = useState('');
   const [choferes, setChoferes] = useState([]);
   const [choferesLoading, setChoferesLoading] = useState(true);
+  const [factorias, setFactorias] = useState([]);
+  const [factoriasLoading, setFactoriasLoading] = useState(true);
 
   useEffect(() => {
     cargarChoferes();
+    cargarFactorias();
   }, []);
 
   const cargarChoferes = async () => {
@@ -40,6 +43,31 @@ export default function ModalFleteObreros({ pesada, user, onClose, onSuccess }) 
     }
   };
 
+  const cargarFactorias = async () => {
+    try {
+      // Obtener factorías únicas de los registros de fletes
+      const { data, error: err } = await supabase
+        .from('fletes')
+        .select('factoria')
+        .not('factoria', 'is', null)
+        .order('factoria');
+      
+      if (err) throw err;
+      
+      // Extraer factorías únicas
+      const factoriasUnicas = [...new Set(data.map(f => f.factoria))]
+        .filter(Boolean)
+        .sort()
+        .map((nombre, index) => ({ id: index + 1, nombre }));
+      
+      setFactorias(factoriasUnicas);
+    } catch (err) {
+      console.error('Error al cargar factorías:', err);
+    } finally {
+      setFactoriasLoading(false);
+    }
+  };
+
   const handleChoferSeleccionado = (choferId) => {
     if (choferId) {
       const chofer = choferes.find(c => String(c.id) === String(choferId));
@@ -55,6 +83,23 @@ export default function ModalFleteObreros({ pesada, user, onClose, onSuccess }) 
         ...fleteData,
         chofer: '',
         placa: ''
+      });
+    }
+  };
+
+  const handleFactoriaSeleccionada = (factoriaId) => {
+    if (factoriaId) {
+      const factoria = factorias.find(f => String(f.id) === String(factoriaId));
+      if (factoria) {
+        setFleteData({
+          ...fleteData,
+          factoria: factoria.nombre
+        });
+      }
+    } else {
+      setFleteData({
+        ...fleteData,
+        factoria: ''
       });
     }
   };
@@ -308,7 +353,29 @@ export default function ModalFleteObreros({ pesada, user, onClose, onSuccess }) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Factoría
+                  Seleccionar Factoría
+                </label>
+                <SearchableSelect
+                  options={factorias}
+                  value=""
+                  onChange={(value) => handleFactoriaSeleccionada(value)}
+                  placeholder="-- Seleccionar factoría o ingreso manual --"
+                  searchPlaceholder="Buscar factoría por nombre..."
+                  displayField="nombre"
+                  valueField="id"
+                  disabled={factoriasLoading}
+                />
+                <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  Selecciona una factoría o escribe manualmente abajo
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre de la Factoría
                 </label>
                 <input
                   type="text"
