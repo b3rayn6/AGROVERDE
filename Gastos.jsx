@@ -61,7 +61,7 @@ export default function Gastos() {
       let query = supabase
         .from('cuadre_caja')
         .select('*')
-        .eq('tipo', 'egreso')
+        .eq('tipo_movimiento', 'egreso')
         .gte('fecha', filtroFecha.inicio)
         .lte('fecha', filtroFecha.fin)
         .order('fecha', { ascending: false });
@@ -71,7 +71,7 @@ export default function Gastos() {
       }
 
       if (filtroMoneda !== 'todos') {
-        query = query.eq('moneda', filtroMoneda);
+        query = query.eq('divisa', filtroMoneda);
       }
 
       const { data, error } = await query;
@@ -98,11 +98,11 @@ export default function Gastos() {
     try {
       const gastoData = {
         fecha: formData.fecha,
-        tipo: 'egreso',
+        tipo_movimiento: 'egreso',
         concepto: formData.concepto,
         categoria: formData.categoria,
         monto: parseFloat(formData.monto),
-        moneda: formData.moneda,
+        divisa: formData.moneda,
         metodo_pago: formData.metodo_pago,
         proveedor: formData.proveedor || null,
         referencia: formData.numero_factura || null,
@@ -158,7 +158,7 @@ export default function Gastos() {
       concepto: gasto.concepto,
       categoria: gasto.categoria || 'otros',
       monto: gasto.monto.toString(),
-      moneda: gasto.moneda,
+      moneda: gasto.divisa,
       metodo_pago: gasto.metodo_pago || 'EFECTIVO',
       proveedor: gasto.proveedor || '',
       numero_factura: gasto.referencia || '',
@@ -195,11 +195,11 @@ export default function Gastos() {
   );
 
   const totalDOP = gastosFiltrados
-    .filter(g => g.moneda === 'DOP')
+    .filter(g => g.divisa === 'DOP')
     .reduce((sum, g) => sum + parseFloat(g.monto), 0);
 
   const totalUSD = gastosFiltrados
-    .filter(g => g.moneda === 'USD')
+    .filter(g => g.divisa === 'USD')
     .reduce((sum, g) => sum + parseFloat(g.monto), 0);
 
   return (
@@ -228,7 +228,7 @@ export default function Gastos() {
             </div>
             <TrendingDown className="w-10 h-10 text-red-200" />
           </div>
-          <p className="text-red-100 text-xs">{gastosFiltrados.filter(g => g.moneda === 'DOP').length} registros</p>
+          <p className="text-red-100 text-xs">{gastosFiltrados.filter(g => g.divisa === 'DOP').length} registros</p>
         </div>
 
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-6 text-white">
@@ -239,7 +239,7 @@ export default function Gastos() {
             </div>
             <DollarSign className="w-10 h-10 text-orange-200" />
           </div>
-          <p className="text-orange-100 text-xs">{gastosFiltrados.filter(g => g.moneda === 'USD').length} registros</p>
+          <p className="text-orange-100 text-xs">{gastosFiltrados.filter(g => g.divisa === 'USD').length} registros</p>
         </div>
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
@@ -359,7 +359,7 @@ export default function Gastos() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{gasto.metodo_pago}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{gasto.referencia || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-right text-red-600">
-                      -{formatCurrency(gasto.monto, gasto.moneda)}
+                      -{formatCurrency(gasto.monto, gasto.divisa)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <button
