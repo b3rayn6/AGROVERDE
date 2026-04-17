@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Limpiar Caché y Sesión</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .container {
+      background: white;
+      color: #333;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #667eea;
+      margin-top: 0;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px;
+      transition: all 0.3s;
+    }
+    button:hover {
+      background: #764ba2;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    .resultado {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 5px;
+      display: none;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    .code {
+      background: #f4f4f4;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      margin: 10px 0;
+      overflow-x: auto;
+    }
+    .step {
+      margin: 15px 0;
+      padding: 15px;
+      background: #f8f9fa;
+      border-left: 4px solid #667eea;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧹 Limpiar Caché y Sesión Legacy</h1>
+    
+    <p><strong>Problema:</strong> El navegador está usando código antiguo con usuarios legacy.</p>
+    
+    <div class="step">
+      <h3>Paso 1: Limpiar Sesión Legacy</h3>
+      <button onclick="limpiarSesion()">🗑️ Limpiar Sesión</button>
+      <div id="resultado-sesion" class="resultado"></div>
+    </div>
+    
+    <div class="step">
+      <h3>Paso 2: Limpiar Todo el localStorage</h3>
+      <button onclick="limpiarTodo()">🧹 Limpiar Todo</button>
+      <div id="resultado-todo" class="resultado"></div>
+    </div>
+    
+    <div class="step">
+      <h3>Paso 3: Limpiar Caché del Navegador</h3>
+      <p>Presiona:</p>
+      <div class="code">
+        <strong>Windows/Linux:</strong> Ctrl + Shift + Delete<br>
+        <strong>Mac:</strong> Cmd + Shift + Delete
+      </div>
+      <p>Luego selecciona "Imágenes y archivos en caché" y haz clic en "Borrar datos"</p>
+    </div>
+    
+    <div class="step">
+      <h3>Paso 4: Hard Refresh</h3>
+      <p>Presiona:</p>
+      <div class="code">
+        <strong>Windows/Linux:</strong> Ctrl + Shift + R<br>
+        <strong>Mac:</strong> Cmd + Shift + R
+      </div>
+    </div>
+    
+    <div class="step">
+      <h3>Paso 5: Verificar Código Nuevo</h3>
+      <button onclick="verificarCodigo()">🔍 Verificar</button>
+      <div id="resultado-verificar" class="resultado"></div>
+    </div>
+    
+    <div class="step">
+      <h3>Paso 6: Ir a la Aplicación</h3>
+      <button onclick="irApp()">🚀 Abrir Aplicación</button>
+    </div>
+  </div>
+
+  <script>
+    function limpiarSesion() {
+      const resultado = document.getElementById('resultado-sesion');
+      resultado.style.display = 'block';
+      
+      try {
+        const session = localStorage.getItem('user_session');
+        
+        if (!session) {
+          resultado.className = 'resultado warning';
+          resultado.innerHTML = '⚠️ No hay sesión guardada';
+          return;
+        }
+        
+        const userData = JSON.parse(session);
+        
+        localStorage.removeItem('user_session');
+        
+        resultado.className = 'resultado success';
+        resultado.innerHTML = `
+          ✅ <strong>Sesión eliminada</strong><br>
+          Email: ${userData.email || 'N/A'}<br>
+          Tipo: ${userData.tipo || 'undefined'}
+        `;
+        
+        setTimeout(() => {
+          resultado.innerHTML += '<br><br>🔄 Recargando en 2 segundos...';
+          setTimeout(() => location.reload(), 2000);
+        }, 1000);
+        
+      } catch (error) {
+        localStorage.removeItem('user_session');
+        resultado.className = 'resultado success';
+        resultado.innerHTML = '✅ Sesión corrupta eliminada';
+      }
+    }
+    
+    function limpiarTodo() {
+      const resultado = document.getElementById('resultado-todo');
+      resultado.style.display = 'block';
+      
+      const items = Object.keys(localStorage);
+      localStorage.clear();
+      
+      resultado.className = 'resultado success';
+      resultado.innerHTML = `
+        ✅ <strong>localStorage limpiado</strong><br>
+        Items eliminados: ${items.length}<br>
+        <br>
+        🔄 Recargando en 2 segundos...
+      `;
+      
+      setTimeout(() => location.reload(), 2000);
+    }
+    
+    function verificarCodigo() {
+      const resultado = document.getElementById('resultado-verificar');
+      resultado.style.display = 'block';
+      resultado.className = 'resultado info';
+      
+      // Verificar si hay sesión
+      const session = localStorage.getItem('user_session');
+      const haySession = session ? '❌ Sí (debe estar limpia)' : '✅ No';
+      
+      // Verificar service workers
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          const swCount = registrations.length;
+          
+          resultado.innerHTML = `
+            <strong>Estado del Navegador:</strong><br>
+            • Sesión guardada: ${haySession}<br>
+            • Service Workers: ${swCount}<br>
+            • Caché API: ${caches ? '✅ Disponible' : '❌ No disponible'}<br>
+            <br>
+            ${swCount > 0 ? '⚠️ Hay service workers activos. Considera desregistrarlos.' : '✅ No hay service workers'}
+          `;
+        });
+      } else {
+        resultado.innerHTML = `
+          <strong>Estado del Navegador:</strong><br>
+          • Sesión guardada: ${haySession}<br>
+          • Service Workers: No soportado<br>
+        `;
+      }
+    }
+    
+    function irApp() {
+      // Cambiar esta URL por la de tu aplicación
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>
