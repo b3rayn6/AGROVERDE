@@ -72,33 +72,10 @@ export default function Login({ onLogin, onToggleMode }) {
         return;
       }
 
-      // Si no es usuario del sistema, intentar con users (usuarios antiguos)
-      const { data, error: loginError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
+      // Si no es usuario del sistema, mostrar error
+      setError('Credenciales incorrectas');
+      setLoading(false);
 
-      if (loginError || !data) {
-        setError('Credenciales incorrectas');
-        setLoading(false);
-        return;
-      }
-
-      if (data.password_hash === password) {
-        const userData = { ...data, tipo: 'legacy' };
-        
-        // Guardar sesión en localStorage
-        try {
-          localStorage.setItem('user_session', JSON.stringify(userData));
-        } catch (storageError) {
-          console.warn('No se pudo guardar la sesión en localStorage:', storageError);
-        }
-
-        onLogin(userData);
-      } else {
-        setError('Credenciales incorrectas');
-      }
     } catch (err) {
       console.error('Error en login:', err);
       setError(err.message || 'Error al iniciar sesión. Por favor, intenta nuevamente.');

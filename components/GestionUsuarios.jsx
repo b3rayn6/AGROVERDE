@@ -29,6 +29,7 @@ export default function GestionUsuarios({ user }) {
     setError(null);
     
     try {
+      // Intentar cargar usuarios con manejo de errores mejorado
       const { data: usuariosData, error: errorUsuarios } = await supabase
         .from('usuarios_sistema')
         .select('*, roles(nombre)')
@@ -38,9 +39,29 @@ export default function GestionUsuarios({ user }) {
       console.log('❌ Error usuarios:', errorUsuarios);
       
       if (errorUsuarios) {
-        throw new Error(`Error al cargar usuarios: ${errorUsuarios.message}`);
+        console.error('Error detallado:', errorUsuarios);
+        // Si la tabla no existe o hay error de permisos, intentar con consulta más simple
+        if (errorUsuarios.code === '42P01' || errorUsuarios.code === 'PGRST301') {
+          const { data: usuariosSimple, error: errorSimple } = await supabase
+            .from('usuarios_sistema')
+            .select('*')
+            .order('id', { ascending: false });
+          
+          if (errorSimple) {
+            throw new Error(`Error al cargar usuarios: ${errorSimple.message}`);
+          }
+          
+          setUsuarios(usuariosSimple || []);
+          console.log('✅ Usuarios cargados (sin roles):', usuariosSimple?.length);
+        } else {
+          throw new Error(`Error al cargar usuarios: ${errorUsuarios.message}`);
+        }
+      } else {
+        setUsuarios(usuariosData || []);
+        console.log('✅ Usuarios cargados con roles:', usuariosData?.length);
       }
       
+      // Cargar roles
       const { data: rolesData, error: errorRoles } = await supabase
         .from('roles')
         .select('*')
@@ -50,9 +71,13 @@ export default function GestionUsuarios({ user }) {
       console.log('❌ Error roles:', errorRoles);
       
       if (errorRoles) {
-        throw new Error(`Error al cargar roles: ${errorRoles.message}`);
+        console.warn('Advertencia al cargar roles:', errorRoles.message);
+        setRoles([]);
+      } else {
+        setRoles(rolesData || []);
       }
       
+      // Cargar módulos
       const { data: modulosData, error: errorModulos } = await supabase
         .from('modulos')
         .select('*')
@@ -62,39 +87,42 @@ export default function GestionUsuarios({ user }) {
       console.log('❌ Error módulos:', errorModulos);
       
       if (errorModulos) {
-        throw new Error(`Error al cargar módulos: ${errorModulos.message}`);
-      }
+        console.warn('Advertencia al cargar módulos:', errorModulos.message);
+        setModulos([]);
+      } else {
+        // Verificar y crear módulos faltantes si no existen
+        const modulosRequeridos = [
+          { codigo: 'activos_fijos', nombre: 'Activos Fijos / PPE' },
+          { codigo: 'compensacion_cuentas', nombre: 'Compensación de Cuentas' }
+        ];
 
-    // Verificar y crear módulos faltantes si no existen
-    const modulosRequeridos = [
-      { codigo: 'activos_fijos', nombre: 'Activos Fijos / PPE' },
-      { codigo: 'compensacion_cuentas', nombre: 'Compensación de Cuentas' }
-    ];
+        for (const moduloReq of modulosRequeridos) {
+          const existe = modulosData?.some(m => m.codigo === moduloReq.codigo);
+          if (!existe) {
+            console.log('📝 Creando módulo faltante:', moduloReq.nombre);
+            // Crear el módulo si no existe
+            await supabase
+              .from('modulos')
+              .insert([{ codigo: moduloReq.codigo, nombre: moduloReq.nombre }]);
+          }
+        }
 
-    for (const moduloReq of modulosRequeridos) {
-      const existe = modulosData?.some(m => m.codigo === moduloReq.codigo);
-      if (!existe) {
-        // Crear el módulo si no existe
-        await supabase
+        // Recargar módulos después de crear los faltantes
+        const { data: modulosActualizados, error: errorModulosActualizados } = await supabase
           .from('modulos')
-          .insert([{ codigo: moduloReq.codigo, nombre: moduloReq.nombre }]);
+          .select('*')
+          .order('nombre');
+        
+        console.log('📦 Módulos actualizados:', modulosActualizados);
+        
+        if (!errorModulosActualizados) {
+          setModulos(modulosActualizados || []);
+        } else {
+          setModulos(modulosData || []);
+        }
       }
-    }
-
-    // Recargar módulos después de crear los faltantes
-    const { data: modulosActualizados, error: errorModulosActualizados } = await supabase
-      .from('modulos')
-      .select('*')
-      .order('nombre');
     
-    console.log('📦 Módulos actualizados:', modulosActualizados);
-    console.log('❌ Error módulos actualizados:', errorModulosActualizados);
-
-    setUsuarios(usuariosData || []);
-    setRoles(rolesData || []);
-    setModulos(modulosActualizados || []);
-    
-    console.log('✅ Estado actualizado - Usuarios:', usuariosData?.length, 'Roles:', rolesData?.length, 'Módulos:', modulosActualizados?.length);
+    console.log('✅ Estado actualizado - Usuarios:', usuarios.length, 'Roles:', rolesData?.length, 'Módulos:', modulos.length);
   } catch (error) {
     console.error('❌ Error general en cargarDatos:', error);
     setError(error.message || 'Error al cargar los datos');

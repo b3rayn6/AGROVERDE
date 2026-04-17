@@ -31,6 +31,8 @@ import BaseDatos from './src/components/BaseDatos';
 import AIChatbot from './components/AIChatbot';
 import AIChatbotTest from './components/AIChatbotTest';
 import ChatbotSimple from './components/ChatbotSimple';
+import DiagnosticoUsuarios from './components/DiagnosticoUsuarios';
+import VerificarConexion from './components/VerificarConexion';
 import { FileText, Scale, GitCompare, Truck, Users, DollarSign, LogOut, Package, ShoppingCart, Building2, Receipt, UserCheck, Store, CreditCard, Wallet, TrendingUp, Settings, BookOpen, Calculator, Building, Server, Database, Sparkles } from 'lucide-react';
 
 export default function App() {
@@ -53,18 +55,31 @@ export default function App() {
         if (savedSession) {
           const userData = JSON.parse(savedSession);
           
-          // Verificar que el usuario sigue activo (opcional, para usuarios del sistema)
+          console.log('🔍 Sesión guardada encontrada:', userData.email);
+          
+          // SIEMPRE verificar que el usuario existe en la base de datos
+          // No confiar ciegamente en localStorage
           if (userData.tipo === 'sistema') {
             try {
+              console.log('🔄 Verificando usuario del sistema en Supabase...');
               const { data: usuarioActualizado, error } = await supabase
                 .from('usuarios_sistema')
-                .select('*, roles(nombre)')
+                .select('id, email, nombre_completo, rol_id, activo, legacy_id, created_at, roles(nombre)')
                 .eq('id', userData.id)
                 .eq('activo', true)
-                .single();
+                .maybeSingle();
 
-              if (usuarioActualizado && !error) {
-                // Recargar permisos - usar left join para incluir todos los permisos incluso si el módulo no existe
+              if (error) {
+                console.error('❌ Error verificando sesión:', error);
+                console.log('🧹 Limpiando sesión inválida...');
+                localStorage.removeItem('user_session');
+                setLoadingSession(false);
+                return;
+              }
+
+              if (usuarioActualizado) {
+                console.log('✅ Usuario verificado en Supabase');
+                // Recargar permisos
                 const { data: permisosRaw } = await supabase
                   .from('permisos_usuario')
                   .select('*, modulos(codigo, nombre)')
@@ -77,17 +92,21 @@ export default function App() {
 
                 setUser({ ...usuarioActualizado, permisos, tipo: 'sistema' });
               } else {
-                // Usuario desactivado, limpiar sesión
+                // Usuario no encontrado o desactivado
+                console.warn('⚠️ Usuario no encontrado o desactivado');
                 localStorage.removeItem('user_session');
               }
             } catch (error) {
-              console.error('Error verificando sesión:', error);
-              // Si hay error, usar la sesión guardada de todos modos
-              setUser(userData);
+              console.error('❌ Error de conexión al verificar sesión:', error);
+              // Si hay error de conexión, NO usar la sesión guardada
+              console.log('🧹 Limpiando sesión por error de conexión...');
+              localStorage.removeItem('user_session');
             }
           } else {
-            // Usuario legacy, usar sesión guardada directamente
-            setUser(userData);
+            // Usuario legacy - YA NO SOPORTADO
+            console.warn('⚠️ Usuario legacy detectado - ya no soportado');
+            console.log('🧹 Limpiando sesión legacy...');
+            localStorage.removeItem('user_session');
           }
         }
       } catch (error) {
@@ -129,11 +148,17 @@ export default function App() {
   if (user) {
     // Verificar permisos del usuario
     const tienePermiso = (codigoModulo, accion = 'puede_ver') => {
-      // Usuarios legacy tienen acceso completo
-      if (user.tipo === 'legacy') return true;
+      // Solo usuarios sistema tienen acceso
+      if (user.tipo !== 'sistema') {
+        console.warn('⚠️ Usuario no es del sistema - acceso denegado');
+        return false;
+      }
       
-      // Usuarios sistema tienen acceso completo (temporal para testing)
-      if (user.tipo === 'sistema') return true;
+      // Usuarios sistema con permisos configurados
+      if (user.tipo === 'sistema') {
+        // Acceso completo temporal para testing
+        return true;
+      }
 
       // Buscar permiso específico
       const permiso = user.permisos?.find(p => p.modulos?.codigo === codigoModulo);
@@ -254,12 +279,12 @@ export default function App() {
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center font-bold text-lg shadow-lg">
-                    {(user.nombre || user.username)?.charAt(0).toUpperCase()}
+                    {(user.nombre_completo || user.nombre || user.username)?.charAt(0).toUpperCase()}
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-800 animate-pulse"></div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate text-white">{user.nombre || user.username}</p>
+                  <p className="text-sm font-semibold truncate text-white">{user.nombre_completo || user.nombre || user.username}</p>
                   <p className="text-xs text-emerald-400 truncate font-medium">{user.roles?.nombre || user.tipo}</p>
                 </div>
               </div>
@@ -474,6 +499,10 @@ export default function App() {
 
         {activeModule === 'usuarios' && (
           <GestionUsuarios user={user} />
+        )}
+
+        {activeModule === 'diagnostico' && (
+          <DiagnosticoUsuarios />
         )}
           </main>
         </div>

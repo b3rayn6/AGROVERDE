@@ -1,5 +1,5 @@
 // NUEVO DISEÑO LOGIN - Version 2024-04-14-v3
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LogIn, User, Lock, Eye, EyeOff, Sprout, Shield, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -9,6 +9,27 @@ export default function Login({ onLogin, onToggleMode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Limpiar sesión al cargar el componente si hay error de conexión
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        // Intentar una consulta simple para verificar conexión
+        const { error } = await supabase
+          .from('users')
+          .select('count', { count: 'exact', head: true });
+        
+        if (error && error.message.includes('Failed to fetch')) {
+          console.warn('⚠️ No se puede conectar a Supabase');
+          setError('No se puede conectar al servidor. Verifica tu conexión.');
+        }
+      } catch (err) {
+        console.error('❌ Error de conexión:', err);
+      }
+    };
+    
+    checkConnection();
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -21,11 +42,11 @@ export default function Login({ onLogin, onToggleMode }) {
         .from('usuarios_sistema')
         .select('*, roles(nombre)')
         .eq('email', email)
-        .eq('password', password)
         .eq('activo', true)
-        .single();
+        .maybeSingle();
 
-      if (usuarioSistema) {
+      // Verificar si existe el usuario y si la contraseña coincide
+      if (usuarioSistema && usuarioSistema.password === password) {
         // Cargar permisos del usuario con JOIN explícito
         let permisos = [];
         try {
@@ -74,33 +95,10 @@ export default function Login({ onLogin, onToggleMode }) {
         return;
       }
 
-      // Si no es usuario del sistema, intentar con users (usuarios antiguos)
-      const { data, error: loginError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
+      // Si no es usuario del sistema, mostrar error
+      setError('Credenciales incorrectas');
+      setLoading(false);
 
-      if (loginError || !data) {
-        setError('Credenciales incorrectas');
-        setLoading(false);
-        return;
-      }
-
-      if (data.password_hash === password) {
-        const userData = { ...data, tipo: 'legacy' };
-        
-        // Guardar sesión en localStorage
-        try {
-          localStorage.setItem('user_session', JSON.stringify(userData));
-        } catch (storageError) {
-          console.warn('No se pudo guardar la sesión en localStorage:', storageError);
-        }
-
-        onLogin(userData);
-      } else {
-        setError('Credenciales incorrectas');
-      }
     } catch (err) {
       console.error('Error en login:', err);
       setError(err.message || 'Error al iniciar sesión. Por favor, intenta nuevamente.');
@@ -315,6 +313,23 @@ export default function Login({ onLogin, onToggleMode }) {
           <p className="text-center text-sm text-gray-500 mt-8">
             © 2024 AgroVerde. Todos los derechos reservados.
           </p>
+          
+          {/* Botón de limpiar sesión (solo visible si hay error) */}
+          {error && (
+            <div className="text-center mt-4">
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  setError('');
+                  alert('Sesión limpiada. Recarga la página.');
+                  window.location.reload();
+                }}
+                className="text-xs text-gray-500 hover:text-gray-700 underline"
+              >
+                🧹 Limpiar datos guardados y reintentar
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

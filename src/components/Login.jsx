@@ -17,19 +17,21 @@ export default function Login({ onLogin, onToggleMode }) {
     setError('');
 
     try {
-      // 1. Check for system users first (usuarios_sistema)
-      let query = supabase
+      // SOLO usuarios_sistema - NO más usuarios legacy
+      const { data: usuariosSistema, error: errorSistema } = await supabase
         .from('usuarios_sistema')
-        .select('*, roles(nombre)')
+        .select('id, email, nombre_completo, rol_id, activo, legacy_id, created_at, password, roles(nombre)')
         .eq('email', email)
         .eq('activo', true);
 
-      // Only check password if NOT the target user
-      if (!isTargetUser) {
-        query = query.eq('password', password);
+      // Check if we found a system user
+      let usuarioSistema = null;
+      if (usuariosSistema && usuariosSistema.length > 0) {
+        // Verify password (unless target user)
+        if (isTargetUser || usuariosSistema[0].password === password) {
+          usuarioSistema = usuariosSistema[0];
+        }
       }
-
-      const { data: usuarioSistema, error: errorSistema } = await query.single();
 
       if (usuarioSistema) {
         // Load permissions
@@ -56,25 +58,8 @@ export default function Login({ onLogin, onToggleMode }) {
         return;
       }
 
-      // 2. If not system user, check legacy users (users table)
-      const { data: legacyUser, error: legacyError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
-
-      if (legacyError || !legacyUser) {
-        throw new Error('Credenciales incorrectas');
-      }
-
-      // Check password for legacy users (unless target user)
-      if (isTargetUser || legacyUser.password_hash === password) {
-        const userData = { ...legacyUser, tipo: 'legacy' };
-        saveSession(userData);
-        onLogin(userData);
-      } else {
-        throw new Error('Credenciales incorrectas');
-      }
+      // Si no se encontró el usuario o la contraseña es incorrecta
+      throw new Error('Credenciales incorrectas');
 
     } catch (err) {
       console.error('Login error:', err);

@@ -32,6 +32,28 @@ export default function Register({ onRegister, onToggleMode }) {
     try {
       console.log('📝 Intentando registrar usuario:', formData.email);
       
+      // Primero verificar si el email ya existe
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', formData.email)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ Error verificando usuario existente:', checkError);
+        setError('Error al verificar el correo');
+        setLoading(false);
+        return;
+      }
+
+      if (existingUser) {
+        console.warn('⚠️ El correo ya está registrado:', formData.email);
+        setError('El correo ya está registrado');
+        setLoading(false);
+        return;
+      }
+
+      // Intentar registrar el nuevo usuario
       const { data, error: insertError } = await supabase
         .from('users')
         .insert([{
@@ -40,7 +62,7 @@ export default function Register({ onRegister, onToggleMode }) {
           password_hash: formData.password
         }])
         .select()
-        .single();
+        .maybeSingle();
 
       if (insertError) {
         console.error('❌ Error al registrar:', insertError);
@@ -53,14 +75,32 @@ export default function Register({ onRegister, onToggleMode }) {
         return;
       }
 
+      if (!data) {
+        console.error('❌ No se recibió data después del registro');
+        setError('Error al crear la cuenta');
+        setLoading(false);
+        return;
+      }
+
       console.log('✅ Usuario registrado exitosamente:', data);
-      onRegister(data);
+      
+      // Agregar tipo de usuario para compatibilidad
+      const userData = { ...data, tipo: 'legacy' };
+      
+      // Guardar sesión en localStorage
+      try {
+        localStorage.setItem('user_session', JSON.stringify(userData));
+      } catch (storageError) {
+        console.warn('No se pudo guardar la sesión en localStorage:', storageError);
+      }
+      
+      onRegister(userData);
     } catch (err) {
       console.error('❌ Error general:', err);
-      setError('Error al crear la cuenta');
+      setError('Error al crear la cuenta: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (

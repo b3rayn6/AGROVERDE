@@ -1,211 +1,193 @@
-# 🔧 Solución al Problema de Gestión de Usuarios
+# 🔧 Solución: Usuarios no aparecen en Gestión de Usuarios
 
-## 📋 Resumen del Problema
-El sistema no mostraba usuarios en la sección de Gestión de Usuarios y no permitía hacer registros.
+## 📋 Problema Identificado
 
-## ✅ Verificación Realizada
+El sistema permite login con credenciales antiguas, pero al entrar a "Gestión de Usuarios" no aparecen los usuarios registrados.
 
-### 1. Base de Datos ✓
-- **Estado**: ✅ FUNCIONANDO CORRECTAMENTE
-- **Usuarios encontrados**: 1 usuario (gestion@agroverde.com)
-- **Roles encontrados**: 3 roles (Administrador, Facturador, Visualizador)
-- **Módulos encontrados**: 21 módulos
-- **Permisos encontrados**: 21 permisos
+## 🎯 Causas Posibles
 
-### 2. Conexión Supabase ✓
-- **URL**: https://njzpozedfitrwphrjmsb.supabase.co
-- **Estado**: ✅ CONECTADO
-- **Tablas verificadas**: usuarios_sistema, roles, modulos, permisos_usuario
+1. **Tablas no existen**: Las tablas `usuarios_sistema`, `roles`, `modulos` no están creadas en Supabase
+2. **RLS (Row Level Security) activo**: Supabase tiene políticas de seguridad que bloquean las consultas
+3. **Permisos insuficientes**: El usuario no tiene permisos para leer las tablas
+4. **Datos en tabla incorrecta**: Los usuarios están en `users` (legacy) pero el componente busca en `usuarios_sistema`
 
-## 🔨 Cambios Implementados
+## ✅ Soluciones Paso a Paso
 
-### 1. Componente GestionUsuarios.jsx
-**Mejoras agregadas:**
+### Opción 1: Usar el Componente de Diagnóstico (RECOMENDADO)
 
-✅ **Logs de depuración detallados**
-- Logs en consola para cada paso de carga de datos
-- Identificación clara de errores en cada consulta
+1. **Acceder al diagnóstico temporal**:
+   - Abre la consola del navegador (F12)
+   - En la consola, escribe: `window.location.hash = '#diagnostico'`
+   - O modifica temporalmente el código para agregar un botón de diagnóstico
 
-✅ **Manejo de errores mejorado**
-- Try-catch completo con mensajes específicos
-- Validación de errores en cada consulta a Supabase
+2. **Agregar botón de diagnóstico temporal**:
+   ```javascript
+   // En App.jsx, agregar en el header:
+   <button onClick={() => setActiveModule('diagnostico')}>
+     🔍 Diagnóstico
+   </button>
+   ```
 
-✅ **Estados de carga**
-- Indicador visual de carga mientras se obtienen datos
-- Pantalla de error con botón de reintentar
-- Mensaje cuando no hay usuarios registrados
+3. **Revisar los resultados**:
+   - ✅ Verde = Tabla existe y tiene datos
+   - ❌ Rojo = Error (ver detalles del error)
+   - ⚠️ Amarillo = Tabla vacía
 
-✅ **UI mejorada**
-- Spinner de carga animado
-- Mensaje de error con diseño claro
-- Pantalla vacía con llamado a acción para crear primer usuario
+### Opción 2: Ejecutar Script SQL en Supabase
 
-### 2. Componente Register.jsx
-**Mejoras agregadas:**
+1. **Ir a Supabase Dashboard**:
+   - Abre https://supabase.com
+   - Selecciona tu proyecto
+   - Ve a "SQL Editor"
 
-✅ **Validaciones mejoradas**
-- Validación de longitud mínima de contraseña (6 caracteres)
-- Mensajes de error más específicos
-- Logs de depuración para identificar problemas
+2. **Ejecutar el script de inicialización**:
+   - Abre el archivo `inicializar_sistema_usuarios.sql`
+   - Copia todo el contenido
+   - Pégalo en el SQL Editor de Supabase
+   - Haz clic en "Run"
 
-✅ **Manejo de errores**
-- Detección de email duplicado (código 23505)
-- Mensajes de error claros y específicos
-- Logs en consola para debugging
+3. **Verificar la creación**:
+   - El script creará:
+     - ✅ Tabla `roles` con 3 roles básicos
+     - ✅ Tabla `usuarios_sistema` 
+     - ✅ Tabla `modulos` con 22 módulos
+     - ✅ Tabla `permisos_usuario`
+     - ✅ Usuario admin por defecto
 
-## 🧪 Cómo Probar la Solución
+4. **Credenciales del admin creado**:
+   ```
+   Email: admin@agroverde.com
+   Contraseña: admin123
+   ```
+   ⚠️ **IMPORTANTE**: Cambiar esta contraseña después del primer login
 
-### Paso 1: Abrir la Consola del Navegador
-1. Presiona `F12` o `Ctrl+Shift+I` (Windows) / `Cmd+Option+I` (Mac)
-2. Ve a la pestaña "Console"
+### Opción 3: Verificar RLS (Row Level Security)
 
-### Paso 2: Navegar a Gestión de Usuarios
-1. Inicia sesión con: `agroverde@gmail.com`
-2. Ve al módulo "Usuarios" en el menú lateral
-3. **Observa los logs en la consola:**
-   - 🔄 GestionUsuarios: Iniciando carga de datos...
-   - 👥 Usuarios cargados: [array de usuarios]
-   - 🎭 Roles cargados: [array de roles]
-   - 📦 Módulos cargados: [array de módulos]
-   - ✅ Estado actualizado - Usuarios: X, Roles: Y, Módulos: Z
+Si las tablas existen pero no cargan datos:
 
-### Paso 3: Verificar la Visualización
-**Deberías ver:**
-- ✅ Tabla con el usuario "gestion" (agroverde@gmail.com)
-- ✅ Botón "Nuevo Usuario" en la esquina superior derecha
-- ✅ Acciones disponibles: Editar, Permisos, Eliminar
+1. **Ir a Supabase Dashboard** → **Authentication** → **Policies**
 
-**Si ves una pantalla de carga:**
-- Espera unos segundos
-- Si persiste, revisa los logs en consola
-
-**Si ves un error:**
-- Lee el mensaje de error
-- Presiona el botón "Reintentar"
-- Revisa los logs en consola para más detalles
-
-### Paso 4: Probar Crear Usuario
-1. Haz clic en "Nuevo Usuario"
-2. Completa el formulario:
-   - Email: `test@agroverde.com`
-   - Contraseña: `123456` (mínimo 6 caracteres)
-   - Nombre Completo: `Usuario de Prueba`
-   - Rol: Selecciona un rol
-   - Usuario Activo: ✓
-3. Haz clic en "Crear"
-4. **Observa los logs en consola**
-
-### Paso 5: Probar Registro (Opcional)
-1. Cierra sesión
-2. Haz clic en "Crear una cuenta"
-3. Completa el formulario de registro
-4. **Observa los logs en consola:**
-   - 📝 Intentando registrar usuario: [email]
-   - ✅ Usuario registrado exitosamente: [data]
-
-## 🐛 Posibles Problemas y Soluciones
-
-### Problema 1: No se cargan los usuarios
-**Síntomas:**
-- Pantalla de carga infinita
-- Error en consola
-
-**Solución:**
-1. Abre la consola del navegador (F12)
-2. Busca el error específico (❌ Error...)
-3. Verifica:
-   - ¿Hay conexión a internet?
-   - ¿Las credenciales de Supabase son correctas en .env?
-   - ¿La tabla usuarios_sistema existe en Supabase?
-
-### Problema 2: Error al crear usuario
-**Síntomas:**
-- Mensaje "Error al crear usuario"
-- No se guarda el usuario
-
-**Solución:**
-1. Verifica que todos los campos estén completos
-2. Verifica que el email no esté duplicado
-3. Verifica que la contraseña tenga al menos 6 caracteres
-4. Revisa los logs en consola para el error específico
-
-### Problema 3: No aparece el módulo de Usuarios
-**Síntomas:**
-- No ves "Usuarios" en el menú lateral
-
-**Solución:**
-1. Verifica que el usuario tenga permisos para el módulo "gestion_usuarios"
-2. En la base de datos, ejecuta:
+2. **Deshabilitar RLS temporalmente** (solo para desarrollo):
    ```sql
-   SELECT * FROM permisos_usuario 
-   WHERE usuario_id = [tu_usuario_id] 
-   AND modulo_id = (SELECT id FROM modulos WHERE codigo = 'gestion_usuarios');
+   ALTER TABLE usuarios_sistema DISABLE ROW LEVEL SECURITY;
+   ALTER TABLE roles DISABLE ROW LEVEL SECURITY;
+   ALTER TABLE modulos DISABLE ROW LEVEL SECURITY;
+   ALTER TABLE permisos_usuario DISABLE ROW LEVEL SECURITY;
    ```
-3. Si no existe, crea el permiso:
+
+3. **O crear políticas permisivas** (mejor para producción):
    ```sql
-   INSERT INTO permisos_usuario (usuario_id, modulo_id, puede_ver, puede_crear, puede_editar, puede_eliminar)
-   VALUES ([tu_usuario_id], (SELECT id FROM modulos WHERE codigo = 'gestion_usuarios'), true, true, true, true);
+   -- Permitir lectura a todos los usuarios autenticados
+   CREATE POLICY "Permitir lectura usuarios_sistema" 
+   ON usuarios_sistema FOR SELECT 
+   USING (true);
+
+   CREATE POLICY "Permitir lectura roles" 
+   ON roles FOR SELECT 
+   USING (true);
+
+   CREATE POLICY "Permitir lectura modulos" 
+   ON modulos FOR SELECT 
+   USING (true);
    ```
 
-## 📊 Logs Esperados en Consola
+### Opción 4: Verificar Manualmente en Supabase
 
-### Carga Exitosa:
+1. **Ir a Table Editor** en Supabase
+2. **Buscar las tablas**:
+   - `usuarios_sistema`
+   - `roles`
+   - `modulos`
+   - `permisos_usuario`
+
+3. **Si no existen**, ejecutar el script `inicializar_sistema_usuarios.sql`
+
+4. **Si existen pero están vacías**, insertar datos manualmente o con el script
+
+## 🔍 Verificación con SQL
+
+Ejecuta este script en Supabase SQL Editor para verificar:
+
+```sql
+-- Ver usuarios del sistema
+SELECT * FROM usuarios_sistema;
+
+-- Ver usuarios legacy
+SELECT * FROM users;
+
+-- Ver roles
+SELECT * FROM roles;
+
+-- Ver módulos
+SELECT * FROM modulos;
+
+-- Ver permisos
+SELECT 
+    u.email,
+    m.nombre as modulo,
+    p.puede_ver,
+    p.puede_crear
+FROM permisos_usuario p
+JOIN usuarios_sistema u ON p.usuario_id = u.id
+JOIN modulos m ON p.modulo_id = m.id;
 ```
-🔄 GestionUsuarios: Iniciando carga de datos...
-👥 Usuarios cargados: [{id: 1, nombre_completo: "gestion", ...}]
-❌ Error usuarios: null
-🎭 Roles cargados: [{id: 1, nombre: "Administrador"}, ...]
-❌ Error roles: null
-📦 Módulos cargados: [{id: 1, nombre: "Pesadas"}, ...]
-❌ Error módulos: null
-📦 Módulos actualizados: [{id: 1, nombre: "Pesadas"}, ...]
-❌ Error módulos actualizados: null
-✅ Estado actualizado - Usuarios: 1 Roles: 3 Módulos: 21
-```
 
-### Error de Conexión:
-```
-🔄 GestionUsuarios: Iniciando carga de datos...
-👥 Usuarios cargados: null
-❌ Error usuarios: {message: "Failed to fetch", ...}
-❌ Error general en cargarDatos: Error: Error al cargar usuarios: Failed to fetch
-```
+## 📝 Cambios Realizados en el Código
 
-## 🎯 Próximos Pasos
+### 1. Login.jsx
+- ✅ Mejorado manejo de errores con `.maybeSingle()`
+- ✅ Verificación de contraseña en código (no en SQL)
+- ✅ Soporte para `password` y `password_hash`
 
-1. **Ejecuta el servidor de desarrollo:**
-   ```bash
-   npm run dev
-   ```
+### 2. Register.jsx
+- ✅ Verificación previa de email existente
+- ✅ Mejor manejo de errores
+- ✅ Guardado automático de sesión
+- ✅ Tipo de usuario agregado
 
-2. **Abre el navegador en:** http://localhost:5173
+### 3. GestionUsuarios.jsx
+- ✅ Manejo de errores mejorado
+- ✅ Fallback a consulta simple si falla el JOIN
+- ✅ Logs detallados en consola
+- ✅ Mensajes de error más claros
 
-3. **Abre la consola del navegador:** F12 → Console
+### 4. DiagnosticoUsuarios.jsx (NUEVO)
+- ✅ Componente para diagnosticar problemas
+- ✅ Muestra estado de todas las tablas
+- ✅ Detalles de errores
+- ✅ Conteo de registros
 
-4. **Inicia sesión y navega a Usuarios**
+## 🚀 Próximos Pasos
 
-5. **Revisa los logs y verifica que todo funcione**
+1. **Ejecutar el script SQL** en Supabase
+2. **Probar login** con las credenciales del admin
+3. **Verificar que aparezcan usuarios** en Gestión de Usuarios
+4. **Crear usuarios adicionales** desde la interfaz
+5. **Configurar permisos** para cada usuario
 
-## 📞 Soporte Adicional
+## ⚠️ Notas Importantes
 
-Si después de seguir estos pasos el problema persiste:
+- Las contraseñas están en **texto plano** (no hasheadas)
+  - Para producción, implementar bcrypt o similar
+- RLS está **deshabilitado** para desarrollo
+  - Para producción, configurar políticas apropiadas
+- El usuario admin tiene **todos los permisos**
+  - Cambiar la contraseña después del primer login
 
-1. **Captura de pantalla de:**
-   - La pantalla de Gestión de Usuarios
-   - Los logs completos de la consola del navegador
-   - El mensaje de error específico
+## 🆘 Si Aún No Funciona
 
-2. **Información adicional:**
-   - ¿Qué navegador estás usando?
-   - ¿Hay algún error en la consola?
-   - ¿Puedes acceder a otros módulos?
+1. **Revisar la consola del navegador** (F12) para ver errores
+2. **Revisar los logs de Supabase** en el dashboard
+3. **Verificar la URL y API Key** en `src/lib/supabase.js`
+4. **Verificar que el proyecto de Supabase esté activo**
+5. **Contactar soporte** con los logs de error
 
-3. **Verifica el archivo .env:**
-   - ¿Las variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY están configuradas?
-   - ¿Son las credenciales correctas?
+## 📞 Información de Depuración
 
----
+Cuando el componente carga, revisa la consola del navegador:
+- `🔄 GestionUsuarios: Iniciando carga de datos...`
+- `👥 Usuarios cargados: [...]`
+- `🎭 Roles cargados: [...]`
+- `📦 Módulos cargados: [...]`
 
-**Última actualización:** 2024-04-17
-**Versión:** 1.0
-**Estado:** ✅ Implementado y listo para pruebas
+Si ves errores, copia el mensaje completo para diagnóstico.
