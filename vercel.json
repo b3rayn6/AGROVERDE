@@ -1,8 +1,7 @@
 {
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "installCommand": "npm install",
+  "devCommand": "vite --port $PORT"
 }

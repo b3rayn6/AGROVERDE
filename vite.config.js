@@ -9,6 +9,26 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    // Optimizaciones para Vercel
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'supabase': ['@supabase/supabase-js'],
+          'ui-vendor': ['lucide-react', 'framer-motion'],
+        },
+      },
+    },
+    // Reducir el tamaño del bundle
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Eliminar console.logs en producción
+      },
+    },
+  },
   server: {
     historyApiFallback: true,
     host: '0.0.0.0',

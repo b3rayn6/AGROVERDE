@@ -1,0 +1,8 @@
+node_modules
+.git
+*.md
+*.sql
+diagnostico_*.js
+crear_usuario_cli.js
+.env.example
+.vscode
