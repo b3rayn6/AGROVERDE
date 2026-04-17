@@ -23,7 +23,15 @@ export default function Register({ onRegister, onToggleMode }) {
       return;
     }
 
+    if (formData.password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      setLoading(false);
+      return;
+    }
+
     try {
+      console.log('📝 Intentando registrar usuario:', formData.email);
+      
       const { data, error: insertError } = await supabase
         .from('users')
         .insert([{
@@ -35,13 +43,20 @@ export default function Register({ onRegister, onToggleMode }) {
         .single();
 
       if (insertError) {
-        setError('El correo ya está registrado');
+        console.error('❌ Error al registrar:', insertError);
+        if (insertError.code === '23505') {
+          setError('El correo ya está registrado');
+        } else {
+          setError('Error al crear la cuenta: ' + insertError.message);
+        }
         setLoading(false);
         return;
       }
 
+      console.log('✅ Usuario registrado exitosamente:', data);
       onRegister(data);
     } catch (err) {
+      console.error('❌ Error general:', err);
       setError('Error al crear la cuenta');
     }
 

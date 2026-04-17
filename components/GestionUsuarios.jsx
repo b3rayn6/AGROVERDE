@@ -9,6 +9,8 @@ export default function GestionUsuarios({ user }) {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [editando, setEditando] = useState(null);
   const [permisos, setPermisos] = useState({});
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -22,20 +24,46 @@ export default function GestionUsuarios({ user }) {
   }, []);
 
   const cargarDatos = async () => {
-    const { data: usuariosData } = await supabase
-      .from('usuarios_sistema')
-      .select('*, roles(nombre)')
-      .order('created_at', { ascending: false });
+    console.log('🔄 GestionUsuarios: Iniciando carga de datos...');
+    setCargando(true);
+    setError(null);
     
-    const { data: rolesData } = await supabase
-      .from('roles')
-      .select('*')
-      .order('nombre');
-    
-    const { data: modulosData } = await supabase
-      .from('modulos')
-      .select('*')
-      .order('nombre');
+    try {
+      const { data: usuariosData, error: errorUsuarios } = await supabase
+        .from('usuarios_sistema')
+        .select('*, roles(nombre)')
+        .order('created_at', { ascending: false });
+      
+      console.log('👥 Usuarios cargados:', usuariosData);
+      console.log('❌ Error usuarios:', errorUsuarios);
+      
+      if (errorUsuarios) {
+        throw new Error(`Error al cargar usuarios: ${errorUsuarios.message}`);
+      }
+      
+      const { data: rolesData, error: errorRoles } = await supabase
+        .from('roles')
+        .select('*')
+        .order('nombre');
+      
+      console.log('🎭 Roles cargados:', rolesData);
+      console.log('❌ Error roles:', errorRoles);
+      
+      if (errorRoles) {
+        throw new Error(`Error al cargar roles: ${errorRoles.message}`);
+      }
+      
+      const { data: modulosData, error: errorModulos } = await supabase
+        .from('modulos')
+        .select('*')
+        .order('nombre');
+      
+      console.log('📦 Módulos cargados:', modulosData);
+      console.log('❌ Error módulos:', errorModulos);
+      
+      if (errorModulos) {
+        throw new Error(`Error al cargar módulos: ${errorModulos.message}`);
+      }
 
     // Verificar y crear módulos faltantes si no existen
     const modulosRequeridos = [
@@ -54,15 +82,26 @@ export default function GestionUsuarios({ user }) {
     }
 
     // Recargar módulos después de crear los faltantes
-    const { data: modulosActualizados } = await supabase
+    const { data: modulosActualizados, error: errorModulosActualizados } = await supabase
       .from('modulos')
       .select('*')
       .order('nombre');
+    
+    console.log('📦 Módulos actualizados:', modulosActualizados);
+    console.log('❌ Error módulos actualizados:', errorModulosActualizados);
 
     setUsuarios(usuariosData || []);
     setRoles(rolesData || []);
     setModulos(modulosActualizados || []);
-  };
+    
+    console.log('✅ Estado actualizado - Usuarios:', usuariosData?.length, 'Roles:', rolesData?.length, 'Módulos:', modulosActualizados?.length);
+  } catch (error) {
+    console.error('❌ Error general en cargarDatos:', error);
+    setError(error.message || 'Error al cargar los datos');
+  } finally {
+    setCargando(false);
+  }
+};
 
   const cargarPermisos = async (usuarioId) => {
     const { data } = await supabase
@@ -292,6 +331,45 @@ export default function GestionUsuarios({ user }) {
     );
   }
 
+  // Mostrar estado de carga
+  if (cargando) {
+    return (
+      <div className="p-6">
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mb-4"></div>
+          <p className="text-gray-600">Cargando usuarios...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar error si existe
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-red-800 mb-2">Error al cargar datos</h3>
+              <p className="text-red-700 mb-4">{error}</p>
+              <button
+                onClick={cargarDatos}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -385,44 +463,58 @@ export default function GestionUsuarios({ user }) {
       )}
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {usuarios.map(usuario => (
-              <tr key={usuario.id}>
-                <td className="px-6 py-4 text-sm font-medium text-gray-900">{usuario.nombre_completo}</td>
-                <td className="px-6 py-4 text-sm text-gray-500">{usuario.email}</td>
-                <td className="px-6 py-4 text-sm text-gray-500">{usuario.roles?.nombre}</td>
-                <td className="px-6 py-4 text-center">
-                  <span className={`px-2 py-1 text-xs rounded-full ${usuario.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {usuario.activo ? 'Activo' : 'Inactivo'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-center">
-                  <div className="flex justify-center gap-2">
-                    <button onClick={() => handleEditar(usuario)} className="text-blue-600 hover:text-blue-800">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleEditarPermisos(usuario.id)} className="text-purple-600 hover:text-purple-800">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleEliminar(usuario.id)} className="text-red-600 hover:text-red-800">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
+        {usuarios.length === 0 ? (
+          <div className="p-12 text-center">
+            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">No hay usuarios registrados</h3>
+            <p className="text-gray-500 mb-4">Comienza creando tu primer usuario del sistema</p>
+            <button
+              onClick={() => setMostrarForm(true)}
+              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Crear Primer Usuario
+            </button>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {usuarios.map(usuario => (
+                <tr key={usuario.id}>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{usuario.nombre_completo}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{usuario.email}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{usuario.roles?.nombre}</td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`px-2 py-1 text-xs rounded-full ${usuario.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {usuario.activo ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <div className="flex justify-center gap-2">
+                      <button onClick={() => handleEditar(usuario)} className="text-blue-600 hover:text-blue-800">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleEditarPermisos(usuario.id)} className="text-purple-600 hover:text-purple-800">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleEliminar(usuario.id)} className="text-red-600 hover:text-red-800">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
