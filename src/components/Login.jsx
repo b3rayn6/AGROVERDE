@@ -19,7 +19,7 @@ export default function Login({ onLogin, onToggleMode }) {
     try {
       console.log('🔐 Intentando login con:', email);
       
-      // SOLO usuarios_sistema - NO filtrar por password en la query
+      // SOLO usuarios_sistema - NO más usuarios legacy
       const { data: usuariosSistema, error: errorSistema } = await supabase
         .from('usuarios_sistema')
         .select('id, email, nombre_completo, rol_id, activo, legacy_id, created_at, password, roles(nombre)')
@@ -40,7 +40,7 @@ export default function Login({ onLogin, onToggleMode }) {
           console.log('❌ Contraseña incorrecta');
         }
       } else {
-        console.log('❌ Usuario no encontrado');
+        console.log('❌ Usuario no encontrado en usuarios_sistema');
       }
 
       if (usuarioSistema) {
@@ -68,8 +68,9 @@ export default function Login({ onLogin, onToggleMode }) {
         return;
       }
 
-      // Si no se encontró el usuario o la contraseña es incorrecta
-      throw new Error('Credenciales incorrectas');
+      // ❌ NO PERMITIR USUARIOS LEGACY - Solo usuarios del sistema
+      console.log('❌ Usuario no encontrado o credenciales incorrectas');
+      throw new Error('Credenciales incorrectas. Solo usuarios del sistema pueden acceder.');
 
     } catch (err) {
       console.error('Login error:', err);

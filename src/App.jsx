@@ -77,12 +77,14 @@ export default function App() {
               }
             } catch (error) {
               console.error('Error verificando sesión:', error);
-              // Si hay error, usar la sesión guardada de todos modos
-              setUser(userData);
+              // Si hay error de conexión, NO usar la sesión guardada
+              console.error('Error verificando sesión:', error);
+              localStorage.removeItem('user_session');
             }
           } else {
-            // Usuario legacy, usar sesión guardada directamente
-            setUser(userData);
+            // ❌ Usuario legacy YA NO SOPORTADO - limpiar sesión
+            console.warn('⚠️ Usuario legacy detectado - ya no soportado');
+            localStorage.removeItem('user_session');
           }
         }
       } catch (error) {
@@ -198,8 +200,11 @@ export default function App() {
 
     // Verificar permisos del usuario
     const tienePermiso = (codigoModulo, accion = 'puede_ver') => {
-      // Usuarios legacy tienen acceso completo
-      if (user.tipo === 'legacy') return true;
+      // Solo usuarios sistema tienen acceso
+      if (user.tipo !== 'sistema') {
+        console.warn('⚠️ Usuario no es del sistema - acceso denegado');
+        return false;
+      }
 
       // Buscar permiso específico
       const permiso = user.permisos?.find(p => p.modulos?.codigo === codigoModulo);
