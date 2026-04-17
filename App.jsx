@@ -44,8 +44,9 @@ export default function App() {
   const [loadingSession, setLoadingSession] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // 🔄 VERSION: 2024-04-14-v3 - Servidor y Base de Datos siempre visibles
-  console.log('🚀 App.jsx cargado - Versión: 2024-04-14-v3');
+  // 🔄 VERSION: 2024-04-17-v4 - Sin soporte para usuarios legacy
+  console.log('🚀 App.jsx (src) cargado - CON Servidor y Base de Datos');
+  console.log('🚫 Usuarios legacy: NO SOPORTADOS');
 
   // Cargar sesión guardada al iniciar
   useEffect(() => {
@@ -59,53 +60,55 @@ export default function App() {
           
           // SIEMPRE verificar que el usuario existe en la base de datos
           // No confiar ciegamente en localStorage
-          if (userData.tipo === 'sistema') {
-            try {
-              console.log('🔄 Verificando usuario del sistema en Supabase...');
-              const { data: usuarioActualizado, error } = await supabase
-                .from('usuarios_sistema')
-                .select('id, email, nombre_completo, rol_id, activo, legacy_id, created_at, roles(nombre)')
-                .eq('id', userData.id)
-                .eq('activo', true)
-                .maybeSingle();
+          // SOLO usuarios del sistema son válidos
+          if (userData.tipo !== 'sistema') {
+            console.warn('⚠️ Tipo de usuario inválido:', userData.tipo);
+            console.log('🧹 Limpiando sesión inválida...');
+            localStorage.removeItem('user_session');
+            setLoadingSession(false);
+            return;
+          }
 
-              if (error) {
-                console.error('❌ Error verificando sesión:', error);
-                console.log('🧹 Limpiando sesión inválida...');
-                localStorage.removeItem('user_session');
-                setLoadingSession(false);
-                return;
-              }
+          try {
+            console.log('🔄 Verificando usuario del sistema en Supabase...');
+            const { data: usuarioActualizado, error } = await supabase
+              .from('usuarios_sistema')
+              .select('id, email, nombre_completo, rol_id, activo, legacy_id, created_at, roles(nombre)')
+              .eq('id', userData.id)
+              .eq('activo', true)
+              .maybeSingle();
 
-              if (usuarioActualizado) {
-                console.log('✅ Usuario verificado en Supabase');
-                // Recargar permisos
-                const { data: permisosRaw } = await supabase
-                  .from('permisos_usuario')
-                  .select('*, modulos(codigo, nombre)')
-                  .eq('usuario_id', userData.id);
+            if (error) {
+              console.error('❌ Error verificando sesión:', error);
+              console.log('🧹 Limpiando sesión inválida...');
+              localStorage.removeItem('user_session');
+              setLoadingSession(false);
+              return;
+            }
 
-                const permisos = permisosRaw?.map(p => ({
-                  ...p,
-                  modulos: p.modulos || { codigo: 'unknown', nombre: 'Unknown' }
-                })) || [];
+            if (usuarioActualizado) {
+              console.log('✅ Usuario verificado en Supabase');
+              // Recargar permisos
+              const { data: permisosRaw } = await supabase
+                .from('permisos_usuario')
+                .select('*, modulos(codigo, nombre)')
+                .eq('usuario_id', userData.id);
 
-                setUser({ ...usuarioActualizado, permisos, tipo: 'sistema' });
-              } else {
-                // Usuario no encontrado o desactivado
-                console.warn('⚠️ Usuario no encontrado o desactivado');
-                localStorage.removeItem('user_session');
-              }
-            } catch (error) {
-              console.error('❌ Error de conexión al verificar sesión:', error);
-              // Si hay error de conexión, NO usar la sesión guardada
-              console.log('🧹 Limpiando sesión por error de conexión...');
+              const permisos = permisosRaw?.map(p => ({
+                ...p,
+                modulos: p.modulos || { codigo: 'unknown', nombre: 'Unknown' }
+              })) || [];
+
+              setUser({ ...usuarioActualizado, permisos, tipo: 'sistema' });
+            } else {
+              // Usuario no encontrado o desactivado
+              console.warn('⚠️ Usuario no encontrado o desactivado');
               localStorage.removeItem('user_session');
             }
-          } else {
-            // Usuario legacy - YA NO SOPORTADO
-            console.warn('⚠️ Usuario legacy detectado - ya no soportado');
-            console.log('🧹 Limpiando sesión legacy...');
+          } catch (error) {
+            console.error('❌ Error de conexión al verificar sesión:', error);
+            // Si hay error de conexión, NO usar la sesión guardada
+            console.log('🧹 Limpiando sesión por error de conexión...');
             localStorage.removeItem('user_session');
           }
         }
@@ -154,28 +157,27 @@ export default function App() {
         return false;
       }
       
-      // Usuarios sistema con permisos configurados
-      if (user.tipo === 'sistema') {
-        // Acceso completo temporal para testing
-        return true;
+      // Si no hay permisos configurados, denegar acceso
+      if (!user.permisos || user.permisos.length === 0) {
+        console.warn('⚠️ Usuario sin permisos configurados');
+        return false;
       }
 
       // Buscar permiso específico
       const permiso = user.permisos?.find(p => p.modulos?.codigo === codigoModulo);
-      return permiso?.[accion] || false;
+      const tieneAcceso = permiso?.[accion] || false;
+      
+      if (!tieneAcceso) {
+        console.log(`🔒 Acceso denegado a ${codigoModulo} (${accion})`);
+      }
+      
+      return tieneAcceso;
     };
 
     // 🔍 DEBUG - Ver permisos en App.js
-    console.log('🎯 DEBUG App.js - Usuario completo:', user);
-    console.log('🎯 DEBUG App.js - Tipo de usuario:', user.tipo);
-    console.log('🎯 DEBUG App.js - Permisos del usuario:', user.permisos);
-    
-    if (user.permisos && user.permisos.length > 0) {
-      console.log('🎯 DEBUG App.js - Primer permiso (ejemplo):', user.permisos[0]);
-      const compensacion = user.permisos.find(p => p.modulos?.codigo === 'compensacion_pesadas');
-      console.log('🎯 DEBUG App.js - Permiso compensacion_pesadas:', compensacion);
-      console.log('🎯 DEBUG App.js - tienePermiso("compensacion_pesadas"):', tienePermiso('compensacion_pesadas'));
-    }
+    console.log('📋 Total módulos definidos:', todosLosModulos.length);
+    console.log('👤 Usuario:', user.email, '- Tipo:', user.tipo);
+    console.log('🔑 Permisos configurados:', user.permisos?.length || 0);
 
     // Menú de navegación con permisos
     const todosLosModulos = [
@@ -215,8 +217,8 @@ export default function App() {
       return tienePermiso(modulo.codigo, 'puede_ver');
     });
 
-    console.log('📋 Total de módulos en navegación:', navigation.length);
-    console.log('📋 Módulos disponibles:', navigation.map(m => m.name).join(', '));
+    console.log('📋 Total módulos en navegación:', navigation.length);
+    console.log('📋 Módulos visibles:', navigation.map(m => m.name).join(', '));
 
     // Si estamos creando/editando una factura
     if (showNuevaFactura || editingFactura) {

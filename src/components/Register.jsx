@@ -1,48 +1,149 @@
-import { useState } from 'react';
-import { UserPlus, User, Lock, Mail } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { UserPlus, User, Lock, Mail, Briefcase } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function Register({ onRegister, onToggleMode }) {
   const [formData, setFormData] = useState({
-    nombre: '',
+    nombre_completo: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    rol_id: ''
   });
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Cargar roles disponibles
+  useEffect(() => {
+    const cargarRoles = async () => {
+      const { data, error } = await supabase
+        .from('roles')
+        .select('id, nombre, descripcion')
+        .order('nombre');
+      
+      if (!error && data) {
+        setRoles(data);
+        // Seleccionar rol "Usuario" por defecto si existe
+        const rolUsuario = data.find(r => r.nombre === 'Usuario' || r.nombre === 'Visualizador');
+        if (rolUsuario) {
+          setFormData(prev => ({ ...prev, rol_id: rolUsuario.id }));
+        }
+      }
+    };
+    
+    cargarRoles();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    // Validaciones
     if (formData.password !== formData.confirmPassword) {
       setError('Las contraseñas no coinciden');
       setLoading(false);
       return;
     }
 
-    try {
-      const { data, error: insertError } = await supabase
-        .from('users')
-        .insert([{
-          nombre: formData.nombre,
-          email: formData.email,
-          password_hash: formData.password
-        }])
-        .select()
-        .single();
+    if (formData.password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
+      setLoading(false);
+      return;
+    }
 
-      if (insertError) {
-        setError('El correo ya está registrado');
+    if (!formData.rol_id) {
+      setError('Debes seleccionar un rol');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log('🔐 Registrando nuevo usuario:', formData.email);
+      
+      // Verificar si el email ya existe
+      const { data: existente, error: errorCheck } = await supabase
+        .from('usuarios_sistema')
+        .select('id, email')
+        .eq('email', formData.email)
+        .maybeSingle();
+      
+      if (existente) {
+        setError('El correo electrónico ya está registrado');
         setLoading(false);
         return;
       }
 
-      onRegister(data);
+      // Crear usuario en usuarios_sistema
+      const { data: nuevoUsuario, error: insertError } = await supabase
+        .from('usuarios_sistema')
+        .insert([{
+          nombre_completo: formData.nombre_completo,
+          email: formData.email,
+          password: formData.password, // ⚠️ En producción usar hash
+          rol_id: formData.rol_id,
+          activo: true
+        }])
+        .select('id, email, nombre_completo, rol_id, activo, roles(nombre)')
+        .single();
+
+      if (insertError) {
+        console.error('❌ Error al crear usuario:', insertError);
+        setError(insertError.message || 'Error al crear la cuenta');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Usuario creado exitosamente:', nuevoUsuario.email);
+
+      // Asignar permisos básicos (solo lectura) a módulos comunes
+      const modulosBasicos = ['pesadas', 'facturas_factoria', 'clientes', 'suplidores', 'inventario'];
+      
+      const { data: modulos } = await supabase
+        .from('modulos')
+        .select('id, codigo')
+        .in('codigo', modulosBasicos);
+
+      if (modulos && modulos.length > 0) {
+        const permisos = modulos.map(m => ({
+          usuario_id: nuevoUsuario.id,
+          modulo_id: m.id,
+          puede_ver: true,
+          puede_crear: false,
+          puede_editar: false,
+          puede_eliminar: false
+        }));
+
+        const { error: errorPermisos } = await supabase
+          .from('permisos_usuario')
+          .insert(permisos);
+
+        if (errorPermisos) {
+          console.warn('⚠️ Error asignando permisos básicos:', errorPermisos);
+        } else {
+          console.log('✅ Permisos básicos asignados');
+        }
+      }
+
+      // Cargar permisos para el usuario
+      const { data: permisosUsuario } = await supabase
+        .from('permisos_usuario')
+        .select('*, modulos(codigo, nombre)')
+        .eq('usuario_id', nuevoUsuario.id);
+
+      const permisos = permisosUsuario?.map(p => ({
+        ...p,
+        modulos: p.modulos || { codigo: 'unknown', nombre: 'Unknown' }
+      })) || [];
+
+      const userData = { ...nuevoUsuario, permisos, tipo: 'sistema' };
+      console.log('✅ Registro completado - Iniciando sesión...');
+      
+      onRegister(userData);
     } catch (err) {
-      setError('Error al crear la cuenta');
+      console.error('❌ Error en registro:', err);
+      setError('Error al crear la cuenta. Intenta nuevamente.');
     }
 
     setLoading(false);
@@ -70,8 +171,8 @@ export default function Register({ onRegister, onToggleMode }) {
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                value={formData.nombre}
-                onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                value={formData.nombre_completo}
+                onChange={(e) => setFormData({...formData, nombre_completo: e.target.value})}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="Juan Pérez"
                 required
@@ -98,7 +199,29 @@ export default function Register({ onRegister, onToggleMode }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Contraseña
+              Rol
+            </label>
+            <div className="relative">
+              <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <select
+                value={formData.rol_id}
+                onChange={(e) => setFormData({...formData, rol_id: e.target.value})}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
+                required
+              >
+                <option value="">Selecciona un rol</option>
+                {roles.map(rol => (
+                  <option key={rol.id} value={rol.id}>
+                    {rol.nombre} {rol.descripcion ? `- ${rol.descripcion}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Contraseña (mínimo 8 caracteres)
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -109,7 +232,7 @@ export default function Register({ onRegister, onToggleMode }) {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="••••••••"
                 required
-                minLength={6}
+                minLength={8}
               />
             </div>
           </div>
@@ -127,6 +250,7 @@ export default function Register({ onRegister, onToggleMode }) {
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="••••••••"
                 required
+                minLength={8}
               />
             </div>
           </div>

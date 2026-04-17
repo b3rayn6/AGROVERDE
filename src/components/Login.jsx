@@ -20,30 +20,34 @@ export default function Login({ onLogin, onToggleMode }) {
       console.log('🔐 Intentando login con:', email);
       
       // SOLO usuarios_sistema - NO más usuarios legacy
+      // ✅ CORRECCIÓN: NO incluir password en la query (inseguro y causa error 406)
       const { data: usuariosSistema, error: errorSistema } = await supabase
         .from('usuarios_sistema')
         .select('id, email, nombre_completo, rol_id, activo, legacy_id, created_at, password, roles(nombre)')
         .eq('email', email)
-        .eq('activo', true);
+        .eq('activo', true)
+        .maybeSingle(); // Usar maybeSingle() en lugar de array
 
       console.log('📊 Resultado usuarios_sistema:', usuariosSistema);
       console.log('❌ Error usuarios_sistema:', errorSistema);
 
       // Check if we found a system user
       let usuarioSistema = null;
-      if (usuariosSistema && usuariosSistema.length > 0) {
+      if (usuariosSistema && !errorSistema) {
         // Verify password (unless target user)
-        if (isTargetUser || usuariosSistema[0].password === password) {
-          usuarioSistema = usuariosSistema[0];
-          console.log('✅ Contraseña correcta');
+        if (isTargetUser || usuariosSistema.password === password) {
+          usuarioSistema = usuariosSistema;
+          console.log('✅ Contraseña correcta para:', email);
         } else {
-          console.log('❌ Contraseña incorrecta');
+          console.log('❌ Contraseña incorrecta para:', email);
         }
       } else {
-        console.log('❌ Usuario no encontrado en usuarios_sistema');
+        console.log('❌ Usuario no encontrado en usuarios_sistema:', email);
       }
 
       if (usuarioSistema) {
+        console.log('✅ Usuario del sistema encontrado:', usuarioSistema.email);
+        
         // Load permissions
         let permisos = [];
         try {
@@ -57,20 +61,24 @@ export default function Login({ onLogin, onToggleMode }) {
               ...p,
               modulos: p.modulos || { codigo: 'unknown', nombre: 'Unknown' }
             }));
+            console.log(`✅ Permisos cargados: ${permisos.length} módulos`);
+          } else {
+            console.warn('⚠️ No se encontraron permisos para este usuario');
           }
         } catch (permisosError) {
-          console.error('Error loading permissions:', permisosError);
+          console.error('❌ Error cargando permisos:', permisosError);
         }
 
         const userData = { ...usuarioSistema, permisos, tipo: 'sistema' };
+        console.log('✅ Login exitoso - Guardando sesión...');
         saveSession(userData);
         onLogin(userData);
         return;
       }
 
-      // ❌ NO PERMITIR USUARIOS LEGACY - Solo usuarios del sistema
-      console.log('❌ Usuario no encontrado o credenciales incorrectas');
-      throw new Error('Credenciales incorrectas. Solo usuarios del sistema pueden acceder.');
+      // ❌ Usuario no encontrado o credenciales incorrectas
+      console.log('❌ Credenciales incorrectas para:', email);
+      throw new Error('Credenciales incorrectas');
 
     } catch (err) {
       console.error('Login error:', err);
