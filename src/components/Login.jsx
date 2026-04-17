@@ -48,6 +48,14 @@ export default function Login({ onLogin, onToggleMode }) {
       if (usuarioSistema) {
         console.log('✅ Usuario del sistema encontrado:', usuarioSistema.email);
         
+        // 🔒 VERIFICACIÓN ADICIONAL: Asegurar que NO es usuario legacy
+        if (usuarioSistema.legacy_id) {
+          console.error('❌ BLOQUEADO: Usuario legacy detectado');
+          console.log('   - Email:', usuarioSistema.email);
+          console.log('   - Legacy ID:', usuarioSistema.legacy_id);
+          throw new Error('Este usuario es legacy y ya no está soportado. Contacta al administrador.');
+        }
+        
         // Load permissions
         let permisos = [];
         try {

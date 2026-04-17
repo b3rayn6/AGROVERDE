@@ -48,6 +48,41 @@ export default function App() {
   console.log('🚀 App.jsx (src) cargado - CON Servidor y Base de Datos');
   console.log('🚫 Usuarios legacy: NO SOPORTADOS');
 
+  // 🧹 LIMPIEZA FORZADA: Eliminar cualquier sesión legacy al cargar
+  useEffect(() => {
+    const limpiarSesionesLegacy = () => {
+      try {
+        const savedSession = localStorage.getItem('user_session');
+        if (savedSession) {
+          const userData = JSON.parse(savedSession);
+          
+          // Si no tiene tipo o no es 'sistema', limpiar inmediatamente
+          if (!userData.tipo || userData.tipo !== 'sistema') {
+            console.warn('🧹 LIMPIEZA FORZADA: Sesión legacy detectada');
+            console.log('   - Tipo:', userData.tipo || 'undefined');
+            console.log('   - Email:', userData.email || 'N/A');
+            localStorage.removeItem('user_session');
+            console.log('✅ Sesión legacy eliminada');
+          }
+          
+          // Si tiene tipo 'sistema' pero no tiene ID, también limpiar
+          if (userData.tipo === 'sistema' && !userData.id) {
+            console.warn('🧹 LIMPIEZA FORZADA: Usuario sistema sin ID');
+            localStorage.removeItem('user_session');
+            console.log('✅ Sesión inválida eliminada');
+          }
+        }
+      } catch (error) {
+        console.error('Error en limpieza de sesiones:', error);
+        // Si hay error parseando, limpiar todo
+        localStorage.removeItem('user_session');
+      }
+    };
+    
+    // Ejecutar limpieza inmediatamente
+    limpiarSesionesLegacy();
+  }, []); // Solo al montar el componente
+
   // Cargar sesión guardada al iniciar
   useEffect(() => {
     const loadSavedSession = async () => {
@@ -61,8 +96,19 @@ export default function App() {
           // SIEMPRE verificar que el usuario existe en la base de datos
           // No confiar ciegamente en localStorage
           // SOLO usuarios del sistema son válidos
-          if (userData.tipo !== 'sistema') {
-            console.warn('⚠️ Tipo de usuario inválido:', userData.tipo);
+          
+          // 🔒 BLOQUEO ESTRICTO: Rechazar cualquier cosa que no sea tipo 'sistema'
+          if (!userData.tipo || userData.tipo !== 'sistema') {
+            console.warn('⚠️ Tipo de usuario inválido:', userData.tipo || 'undefined');
+            console.log('🧹 Limpiando sesión legacy/inválida...');
+            localStorage.removeItem('user_session');
+            setLoadingSession(false);
+            return;
+          }
+          
+          // 🔒 VERIFICACIÓN ADICIONAL: Si no tiene ID válido, rechazar
+          if (!userData.id) {
+            console.warn('⚠️ Usuario sin ID válido');
             console.log('🧹 Limpiando sesión inválida...');
             localStorage.removeItem('user_session');
             setLoadingSession(false);
