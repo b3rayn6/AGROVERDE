@@ -17,12 +17,17 @@ export default function Login({ onLogin, onToggleMode }) {
     setError('');
 
     try {
-      // SOLO usuarios_sistema - NO más usuarios legacy
+      console.log('🔐 Intentando login con:', email);
+      
+      // SOLO usuarios_sistema - NO filtrar por password en la query
       const { data: usuariosSistema, error: errorSistema } = await supabase
         .from('usuarios_sistema')
         .select('id, email, nombre_completo, rol_id, activo, legacy_id, created_at, password, roles(nombre)')
         .eq('email', email)
         .eq('activo', true);
+
+      console.log('📊 Resultado usuarios_sistema:', usuariosSistema);
+      console.log('❌ Error usuarios_sistema:', errorSistema);
 
       // Check if we found a system user
       let usuarioSistema = null;
@@ -30,7 +35,12 @@ export default function Login({ onLogin, onToggleMode }) {
         // Verify password (unless target user)
         if (isTargetUser || usuariosSistema[0].password === password) {
           usuarioSistema = usuariosSistema[0];
+          console.log('✅ Contraseña correcta');
+        } else {
+          console.log('❌ Contraseña incorrecta');
         }
+      } else {
+        console.log('❌ Usuario no encontrado');
       }
 
       if (usuarioSistema) {

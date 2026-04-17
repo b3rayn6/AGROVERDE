@@ -37,7 +37,10 @@ export default function Login({ onLogin, onToggleMode }) {
     setError('');
 
     try {
+      console.log('🔐 Intentando login con:', email);
+      
       // Intentar login con usuarios_sistema primero
+      // NO filtrar por password en la query - hacerlo en el cliente
       const { data: usuarioSistema, error: errorSistema } = await supabase
         .from('usuarios_sistema')
         .select('*, roles(nombre)')
@@ -45,8 +48,12 @@ export default function Login({ onLogin, onToggleMode }) {
         .eq('activo', true)
         .maybeSingle();
 
+      console.log('📊 Resultado usuarios_sistema:', usuarioSistema);
+      console.log('❌ Error usuarios_sistema:', errorSistema);
+
       // Verificar si existe el usuario y si la contraseña coincide
       if (usuarioSistema && usuarioSistema.password === password) {
+        console.log('✅ Contraseña correcta para usuario sistema');
         // Cargar permisos del usuario con JOIN explícito
         let permisos = [];
         try {
@@ -95,7 +102,42 @@ export default function Login({ onLogin, onToggleMode }) {
         return;
       }
 
-      // Si no es usuario del sistema, mostrar error
+      // Si el usuario existe pero la contraseña es incorrecta
+      if (usuarioSistema && usuarioSistema.password !== password) {
+        console.log('❌ Contraseña incorrecta para usuario sistema');
+        setError('Credenciales incorrectas');
+        setLoading(false);
+        return;
+      }
+
+      // Si no existe en usuarios_sistema, intentar con users (legacy)
+      console.log('🔄 Usuario no encontrado en sistema, intentando legacy...');
+      const { data: usuarioLegacy, error: errorLegacy } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+
+      console.log('📊 Resultado users (legacy):', usuarioLegacy);
+      console.log('❌ Error users (legacy):', errorLegacy);
+
+      if (usuarioLegacy && usuarioLegacy.password === password) {
+        console.log('✅ Login exitoso con usuario legacy');
+        const userData = { ...usuarioLegacy, tipo: 'legacy' };
+        
+        try {
+          localStorage.setItem('user_session', JSON.stringify(userData));
+        } catch (storageError) {
+          console.warn('No se pudo guardar la sesión en localStorage:', storageError);
+        }
+
+        onLogin(userData);
+        setLoading(false);
+        return;
+      }
+
+      // Si no es usuario del sistema ni legacy, mostrar error
+      console.log('❌ Usuario no encontrado o credenciales incorrectas');
       setError('Credenciales incorrectas');
       setLoading(false);
 
