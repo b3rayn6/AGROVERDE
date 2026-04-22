@@ -258,6 +258,51 @@ export default function CuentasPorCobrar() {
     pendiente: acc.pendiente + (parseFloat(c.monto_pendiente) || 0)
   }), { total: 0, cobrado: 0, pendiente: 0 });
 
+  // Función para calcular el interés de mora de una factura
+  const calcularInteresMora = (cuenta) => {
+    if (!cuenta || cuenta.tipo !== 'Factura' || cuenta.monto_pendiente <= 0) return 0;
+    
+    const fechaFactura = new Date(cuenta.fecha_emision);
+    const hoy = new Date();
+    const diasMora = Math.floor((hoy - fechaFactura) / (1000 * 60 * 60 * 24));
+    
+    // Solo aplicar interés si han pasado más de 30 días
+    if (diasMora > 30) {
+      // Interés simple: 3% mensual sobre el saldo pendiente
+      const tasaDiaria = 0.03 / 30;
+      const interes = cuenta.monto_pendiente * tasaDiaria * diasMora;
+      return interes;
+    }
+    
+    return 0;
+  };
+
+  // Calcular el total de facturas a crédito más intereses
+  // Solo incluye el balance pendiente (lo que falta por cobrar) + interés de mora
+  const totalesConIntereses = cuentas
+    .filter(c => c.tipo === 'Factura' && (!c.divisa || c.divisa === 'DOP') && c.estado === 'Pendiente')
+    .reduce((acc, c) => {
+      const interes = calcularInteresMora(c);
+      const montoPendiente = parseFloat(c.monto_pendiente) || 0;
+      return {
+        totalPendiente: acc.totalPendiente + montoPendiente,
+        totalIntereses: acc.totalIntereses + interes,
+        totalACobrar: acc.totalACobrar + montoPendiente + interes
+      };
+    }, { totalPendiente: 0, totalIntereses: 0, totalACobrar: 0 });
+
+  const totalesConInteresesUSD = cuentas
+    .filter(c => c.tipo === 'Factura' && c.divisa === 'USD' && c.estado === 'Pendiente')
+    .reduce((acc, c) => {
+      const interes = calcularInteresMora(c);
+      const montoPendiente = parseFloat(c.monto_pendiente) || 0;
+      return {
+        totalPendiente: acc.totalPendiente + montoPendiente,
+        totalIntereses: acc.totalIntereses + interes,
+        totalACobrar: acc.totalACobrar + montoPendiente + interes
+      };
+    }, { totalPendiente: 0, totalIntereses: 0, totalACobrar: 0 });
+
   const diasVencido = (fecha) => {
     const hoy = new Date();
     const fechaEmision = new Date(fecha);
@@ -940,7 +985,7 @@ export default function CuentasPorCobrar() {
           </div>
 
           {/* Resumen General */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl shadow-xl text-white transform hover:scale-105 transition-all duration-300">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-blue-100">Total por Cobrar</p>
@@ -959,7 +1004,7 @@ export default function CuentasPorCobrar() {
               </div>
               <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(totales.cobrado)}</p>
             </div>
-            <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-5 rounded-2xl shadow-xl text-white transform hover:scale-105 transition-all duration-300 sm:col-span-2 lg:col-span-1">
+            <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-5 rounded-2xl shadow-xl text-white transform hover:scale-105 transition-all duration-300">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-orange-100">Pendiente</p>
                 <div className="p-2 bg-white/20 rounded-lg">
@@ -968,28 +1013,55 @@ export default function CuentasPorCobrar() {
               </div>
               <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(totales.pendiente)}</p>
             </div>
+            <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-5 rounded-2xl shadow-xl text-white transform hover:scale-105 transition-all duration-300">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-purple-100">Crédito + Intereses</p>
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <TrendingUp size={20} />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(totalesConIntereses.totalACobrar)}</p>
+              {totalesConIntereses.totalIntereses > 0 && (
+                <p className="text-xs text-purple-100 mt-1">
+                  Interés: {formatCurrency(totalesConIntereses.totalIntereses)}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Resumen de Facturas en USD */}
           {totalesUSD.total > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-5 bg-gradient-to-br from-cyan-50 to-blue-100 rounded-2xl border-2 border-cyan-200 shadow-lg">
-              <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md transform hover:scale-105 transition-all duration-300">
-                <p className="text-xs sm:text-sm text-blue-600 font-semibold mb-1 flex items-center gap-1">
-                  <span className="text-lg">💵</span> Total en USD
-                </p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-700">{formatCurrency(totalesUSD.total, 'USD')}</p>
-              </div>
-              <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md transform hover:scale-105 transition-all duration-300">
-                <p className="text-xs sm:text-sm text-green-600 font-semibold mb-1 flex items-center gap-1">
-                  <span className="text-lg">💵</span> Cobrado en USD
-                </p>
-                <p className="text-xl sm:text-2xl font-bold text-green-700">{formatCurrency(totalesUSD.cobrado, 'USD')}</p>
-              </div>
-              <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md transform hover:scale-105 transition-all duration-300 sm:col-span-2 lg:col-span-1">
-                <p className="text-xs sm:text-sm text-orange-600 font-semibold mb-1 flex items-center gap-1">
-                  <span className="text-lg">💵</span> Pendiente en USD
-                </p>
-                <p className="text-xl sm:text-2xl font-bold text-orange-700">{formatCurrency(totalesUSD.pendiente, 'USD')}</p>
+            <div className="mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 bg-gradient-to-br from-cyan-50 to-blue-100 rounded-2xl border-2 border-cyan-200 shadow-lg">
+                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md transform hover:scale-105 transition-all duration-300">
+                  <p className="text-xs sm:text-sm text-blue-600 font-semibold mb-1 flex items-center gap-1">
+                    <span className="text-lg">💵</span> Total en USD
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-700">{formatCurrency(totalesUSD.total, 'USD')}</p>
+                </div>
+                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md transform hover:scale-105 transition-all duration-300">
+                  <p className="text-xs sm:text-sm text-green-600 font-semibold mb-1 flex items-center gap-1">
+                    <span className="text-lg">💵</span> Cobrado en USD
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-700">{formatCurrency(totalesUSD.cobrado, 'USD')}</p>
+                </div>
+                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md transform hover:scale-105 transition-all duration-300">
+                  <p className="text-xs sm:text-sm text-orange-600 font-semibold mb-1 flex items-center gap-1">
+                    <span className="text-lg">💵</span> Pendiente en USD
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-orange-700">{formatCurrency(totalesUSD.pendiente, 'USD')}</p>
+                </div>
+                <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md transform hover:scale-105 transition-all duration-300">
+                  <p className="text-xs sm:text-sm text-purple-600 font-semibold mb-1 flex items-center gap-1">
+                    <span className="text-lg">💵</span> Crédito + Intereses USD
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-purple-700">{formatCurrency(totalesConInteresesUSD.totalACobrar, 'USD')}</p>
+                  {totalesConInteresesUSD.totalIntereses > 0 && (
+                    <p className="text-xs text-purple-600 mt-1">
+                      Interés: {formatCurrency(totalesConInteresesUSD.totalIntereses, 'USD')}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           )}
