@@ -29,22 +29,43 @@ export default function BaseDatos({ user }) {
     setDiagResultado(null);
     setFixResultado(null);
     try {
-      // 1. Buscar en cuentas_por_cobrar por monto o referencia similar a 051
-      const { data: cxc, error: e1 } = await supabase
-        .from('cuentas_por_cobrar')
-        .select('id, referencia, tipo, monto_total, monto_pendiente, estado, cliente_id, divisa')
-        .or('monto_total.eq.44957.75,referencia.ilike.%051%');
-
-      // 2. Buscar en facturas_venta
-      const { data: fv, error: e2 } = await supabase
+      // Buscar factura AGV-051 en facturas_venta
+      const { data: fv } = await supabase
         .from('facturas_venta')
         .select('id, numero_factura, total, balance_pendiente, estado, tipo_venta, cliente_id')
         .ilike('numero_factura', '%051%');
 
+      // Buscar en cuentas_por_cobrar por referencia %051%
+      const { data: cxc1 } = await supabase
+        .from('cuentas_por_cobrar')
+        .select('id, referencia, tipo, monto_total, monto_pendiente, monto_interes, estado, cliente_id, divisa')
+        .ilike('referencia', '%051%');
+
+      // Buscar en cuentas_por_cobrar por monto exacto 44957.75
+      const { data: cxc2 } = await supabase
+        .from('cuentas_por_cobrar')
+        .select('id, referencia, tipo, monto_total, monto_pendiente, monto_interes, estado, cliente_id, divisa')
+        .eq('monto_total', 44957.75);
+
+      // Buscar por cliente_id de la factura (si encontramos la factura)
+      let cxc3 = [];
+      if (fv && fv.length > 0) {
+        const clienteId = fv[0].cliente_id;
+        const { data } = await supabase
+          .from('cuentas_por_cobrar')
+          .select('id, referencia, tipo, monto_total, monto_pendiente, monto_interes, estado, cliente_id, divisa')
+          .eq('cliente_id', clienteId);
+        cxc3 = data || [];
+      }
+
+      // Combinar y deduplicar por id
+      const todasCxc = [...(cxc1 || []), ...(cxc2 || []), ...(cxc3 || [])];
+      const cxcUnicas = Array.from(new Map(todasCxc.map(c => [c.id, c])).values());
+
       setDiagResultado({
-        cuentas_por_cobrar: cxc || [],
+        cuentas_por_cobrar: cxcUnicas,
         facturas_venta: fv || [],
-        errores: [e1?.message, e2?.message].filter(Boolean)
+        errores: []
       });
     } catch (err) {
       setDiagResultado({ error: err.message });
@@ -54,8 +75,8 @@ export default function BaseDatos({ user }) {
 
   // ── REPARACIÓN: corrige todos los registros encontrados ──────────────────
   const ejecutarReparacion = async () => {
-    if (!diagResultado?.cuentas_por_cobrar?.length && !diagResultado?.facturas_venta?.length) {
-      alert('Ejecuta el diagnóstico primero.');
+    if (!diagResultado?.facturas_venta?.length) {
+      alert('No se encontró la factura. Ejecuta el diagnóstico primero.');
       return;
     }
     setFixLoading(true);
@@ -66,46 +87,61 @@ export default function BaseDatos({ user }) {
       const facturas = diagResultado.facturas_venta || [];
       const cuentas  = diagResultado.cuentas_por_cobrar || [];
 
-      // Para cada factura encontrada, buscar su cuenta y corregirla
       for (const f of facturas) {
-        const totalReal   = parseFloat(f.total) || 0;
-        const balanceReal = parseFloat(f.balance_pendiente) || 0;
+        const totalReal    = parseFloat(f.total) || 0;
+        const balanceReal  = parseFloat(f.balance_pendiente) || 0;
         const estadoCuenta = balanceReal === 0 ? 'Pagada' : 'Pendiente';
 
-        // Buscar cuenta que coincida con esta factura (por referencia exacta o similar)
+        // Obtener datos del cliente
+        const { data: cliente } = await supabase
+          .from('clientes')
+          .select('nombre, cedula')
+          .eq('id', f.cliente_id)
+          .single();
+
+        // Buscar cuentas relacionadas (por referencia exacta, similar, o mismo cliente)
         const cuentasRelacionadas = cuentas.filter(c =>
           c.referencia === f.numero_factura ||
           c.referencia?.includes(f.numero_factura) ||
-          f.numero_factura?.includes(c.referencia)
+          f.numero_factura?.includes(c.referencia?.trim()) ||
+          c.cliente_id === f.cliente_id
         );
 
         if (cuentasRelacionadas.length > 0) {
-          for (const cuenta of cuentasRelacionadas) {
-            const { error } = await supabase
-              .from('cuentas_por_cobrar')
-              .update({
-                monto_total:     totalReal,
-                monto_pendiente: balanceReal,
-                estado:          estadoCuenta,
-                tipo:            'Factura',
-                referencia:      f.numero_factura  // corregir referencia si está mal
-              })
-              .eq('id', cuenta.id);
+          // Ordenar: mantener el que tenga mayor interés acumulado
+          cuentasRelacionadas.sort((a, b) => (parseFloat(b.monto_interes) || 0) - (parseFloat(a.monto_interes) || 0));
+          const mantener = cuentasRelacionadas[0];
+          const interesAcumulado = parseFloat(mantener.monto_interes) || 0;
 
-            if (error) {
-              log.push(`❌ Error actualizando cuenta ID ${cuenta.id}: ${error.message}`);
-            } else {
-              log.push(`✅ Cuenta ID ${cuenta.id} (ref: "${cuenta.referencia}") corregida → total: ${totalReal}, pendiente: ${balanceReal}, estado: ${estadoCuenta}`);
-            }
+          // Eliminar duplicados (todos menos el primero)
+          for (const dup of cuentasRelacionadas.slice(1)) {
+            await supabase.from('cuentas_por_cobrar').delete().eq('id', dup.id);
+            log.push(`🗑️ Eliminado duplicado ID ${dup.id} (ref: "${dup.referencia}", monto: ${dup.monto_total})`);
+          }
+
+          // Corregir el registro principal
+          const { error } = await supabase
+            .from('cuentas_por_cobrar')
+            .update({
+              referencia:      f.numero_factura,
+              tipo:            'Factura',
+              cliente_id:      f.cliente_id,
+              cliente:         cliente?.nombre || '',
+              cedula:          cliente?.cedula || '',
+              monto_total:     totalReal + interesAcumulado,
+              monto_pendiente: balanceReal + interesAcumulado,
+              estado:          estadoCuenta,
+              divisa:          'DOP'
+            })
+            .eq('id', mantener.id);
+
+          if (error) {
+            log.push(`❌ Error corrigiendo ID ${mantener.id}: ${error.message}`);
+          } else {
+            log.push(`✅ ID ${mantener.id} corregido → ref: "${f.numero_factura}", total: ${totalReal + interesAcumulado}, pendiente: ${balanceReal + interesAcumulado}, interés: ${interesAcumulado}`);
           }
         } else {
-          // No hay cuenta para esta factura — crearla
-          const { data: cliente } = await supabase
-            .from('clientes')
-            .select('nombre, cedula')
-            .eq('id', f.cliente_id)
-            .single();
-
+          // No existe ninguna cuenta — crear una nueva
           if (balanceReal > 0) {
             const { error } = await supabase
               .from('cuentas_por_cobrar')
@@ -117,6 +153,7 @@ export default function BaseDatos({ user }) {
                 referencia:      f.numero_factura,
                 monto_total:     totalReal,
                 monto_pendiente: balanceReal,
+                monto_interes:   0,
                 fecha_emision:   new Date().toISOString().split('T')[0],
                 estado:          'Pendiente',
                 divisa:          'DOP'
@@ -130,53 +167,11 @@ export default function BaseDatos({ user }) {
         }
       }
 
-      // Si hay cuentas con monto 44957.75 que no tienen factura relacionada, corregir con lo que hay
-      const cuentasHuerfanas = cuentas.filter(c =>
-        parseFloat(c.monto_total) === 44957.75 &&
-        !facturas.some(f =>
-          c.referencia === f.numero_factura ||
-          c.referencia?.includes(f.numero_factura) ||
-          f.numero_factura?.includes(c.referencia)
-        )
-      );
-
-      for (const cuenta of cuentasHuerfanas) {
-        // Buscar la factura por cliente_id
-        const { data: facturaCliente } = await supabase
-          .from('facturas_venta')
-          .select('numero_factura, total, balance_pendiente')
-          .eq('cliente_id', cuenta.cliente_id)
-          .ilike('numero_factura', '%051%')
-          .single();
-
-        if (facturaCliente) {
-          const { error } = await supabase
-            .from('cuentas_por_cobrar')
-            .update({
-              monto_total:     parseFloat(facturaCliente.total),
-              monto_pendiente: parseFloat(facturaCliente.balance_pendiente),
-              estado:          parseFloat(facturaCliente.balance_pendiente) === 0 ? 'Pagada' : 'Pendiente',
-              tipo:            'Factura',
-              referencia:      facturaCliente.numero_factura
-            })
-            .eq('id', cuenta.id);
-
-          if (error) {
-            log.push(`❌ Error corrigiendo cuenta huérfana ID ${cuenta.id}: ${error.message}`);
-          } else {
-            log.push(`✅ Cuenta huérfana ID ${cuenta.id} corregida con datos de ${facturaCliente.numero_factura}`);
-          }
-        } else {
-          log.push(`⚠️ Cuenta ID ${cuenta.id} (ref: "${cuenta.referencia}") sin factura relacionada encontrada`);
-        }
-      }
-
       if (log.length === 0) {
-        log.push('⚠️ No se encontraron registros para corregir. Verifica el diagnóstico.');
+        log.push('⚠️ No se realizaron cambios. Revisa el diagnóstico.');
       }
 
       setFixResultado(log);
-      // Refrescar diagnóstico
       await ejecutarDiagnostico();
     } catch (err) {
       setFixResultado([`❌ Error general: ${err.message}`]);
