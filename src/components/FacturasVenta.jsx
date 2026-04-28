@@ -1040,15 +1040,26 @@ export default function FacturasVenta() {
         .eq('factura_venta_id', facturaSeleccionada.id);
 
       // Actualizar cuentas_por_cobrar para mantener sincronía con el pago
-      const estadoCuenta = nuevoBalance === 0 ? 'Pagada' : 'Pendiente';
-      await supabase
+      // Preservar el interés acumulado: monto_pendiente = nuevo balance + interés
+      const { data: cuentaCobrar } = await supabase
         .from('cuentas_por_cobrar')
-        .update({
-          monto_pendiente: nuevoBalance,
-          estado: estadoCuenta
-        })
+        .select('id, monto_interes')
         .eq('referencia', facturaSeleccionada.numero_factura)
-        .in('tipo', ['Factura', 'factura_venta', 'factura']);
+        .in('tipo', ['Factura', 'factura_venta', 'factura'])
+        .single();
+
+      if (cuentaCobrar) {
+        const interesAcumulado     = parseFloat(cuentaCobrar.monto_interes) || 0;
+        const pendienteConInteres  = nuevoBalance + interesAcumulado;
+        const estadoCuenta         = pendienteConInteres <= 0 ? 'Pagada' : 'Pendiente';
+        await supabase
+          .from('cuentas_por_cobrar')
+          .update({
+            monto_pendiente: pendienteConInteres,
+            estado:          estadoCuenta
+          })
+          .eq('id', cuentaCobrar.id);
+      }
 
       // Registrar en Cuadre de Caja (verificar duplicados primero)
       const cuadreData = {

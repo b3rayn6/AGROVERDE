@@ -140,7 +140,7 @@ export default function CuentasPorCobrar() {
       // 2. Obtener TODAS las cuentas existentes sin ningún filtro
       const { data: cuentasExistentes, error: errorCuentas } = await supabase
         .from('cuentas_por_cobrar')
-        .select('id, referencia, monto_pendiente, monto_total, estado, tipo');
+        .select('id, referencia, monto_pendiente, monto_total, monto_interes, estado, tipo');
 
       if (errorCuentas) throw errorCuentas;
 
@@ -157,21 +157,26 @@ export default function CuentasPorCobrar() {
       for (const f of facturas) {
         if (f.estado === 'Pagada' || f.estado === 'pagada') continue;
 
-        const balanceReal = parseFloat(f.balance_pendiente) || 0;
-        const totalReal   = parseFloat(f.total) || 0;
+        const balanceReal  = parseFloat(f.balance_pendiente) || 0;
+        const totalReal    = parseFloat(f.total) || 0;
         const estadoCuenta = balanceReal === 0 ? 'Pagada' : 'Pendiente';
 
         if (mapaExistentes.has(f.numero_factura)) {
           const cuentaExistente = mapaExistentes.get(f.numero_factura);
-          const montoActual = parseFloat(cuentaExistente.monto_pendiente) || 0;
-          const totalActual = parseFloat(cuentaExistente.monto_total) || 0;
 
-          // Siempre actualizar para garantizar sincronía
+          // Preservar el interés ya acumulado en cuentas_por_cobrar
+          const interesAcumulado = parseFloat(cuentaExistente.monto_interes) || 0;
+
+          // monto_pendiente = balance real de la factura + interés acumulado
+          const montoPendienteConInteres = balanceReal + interesAcumulado;
+          // monto_total     = total original de la factura + interés acumulado
+          const montoTotalConInteres     = totalReal + interesAcumulado;
+
           const { error: errUpdate } = await supabase
             .from('cuentas_por_cobrar')
             .update({
-              monto_total:     totalReal,
-              monto_pendiente: balanceReal,
+              monto_total:     montoTotalConInteres,
+              monto_pendiente: montoPendienteConInteres,
               estado:          estadoCuenta,
               tipo:            'Factura',
               cliente_id:      f.cliente_id,
@@ -181,10 +186,11 @@ export default function CuentasPorCobrar() {
 
           if (errUpdate) {
             console.error(`Error actualizando ${f.numero_factura}:`, errUpdate);
-          } else if (Math.abs(montoActual - balanceReal) > 0.01 || Math.abs(totalActual - totalReal) > 0.01) {
-            console.log(`Corregido ${f.numero_factura}: total ${totalActual}→${totalReal}, pendiente ${montoActual}→${balanceReal}`);
+          } else {
+            console.log(`Sincronizado ${f.numero_factura}: pendiente=${montoPendienteConInteres} (balance=${balanceReal} + interés=${interesAcumulado})`);
           }
         } else if (balanceReal > 0) {
+          // No existe: crear sin interés (aún no se ha aplicado)
           nuevasCuentas.push({
             cliente_id:        f.cliente_id,
             cliente:           f.clientes?.nombre || 'Cliente Sincronizado',
@@ -193,6 +199,7 @@ export default function CuentasPorCobrar() {
             referencia:        f.numero_factura,
             monto_total:       totalReal,
             monto_pendiente:   balanceReal,
+            monto_interes:     0,
             fecha_emision:     f.fecha,
             fecha_vencimiento: null,
             estado:            'Pendiente',
@@ -1314,7 +1321,7 @@ export default function CuentasPorCobrar() {
                   // Primero limpiar duplicados en BD
                   const { data: todasCuentas } = await supabase
                     .from('cuentas_por_cobrar')
-                    .select('id, referencia, monto_total, monto_pendiente, estado, tipo')
+                    .select('id, referencia, monto_total, monto_pendiente, monto_interes, estado, tipo')
                     .ilike('referencia', 'AGV-%');
 
                   // Agrupar por referencia y eliminar duplicados
@@ -1327,8 +1334,13 @@ export default function CuentasPorCobrar() {
                   for (const ref in grupos) {
                     const grupo = grupos[ref];
                     if (grupo.length > 1) {
-                      // Mantener el de mayor ID, eliminar el resto
-                      grupo.sort((a, b) => b.id - a.id);
+                      // Mantener el que tenga mayor interés acumulado (o mayor ID si empatan)
+                      grupo.sort((a, b) => {
+                        const intA = parseFloat(a.monto_interes) || 0;
+                        const intB = parseFloat(b.monto_interes) || 0;
+                        if (intB !== intA) return intB - intA;
+                        return b.id - a.id;
+                      });
                       for (const dup of grupo.slice(1)) {
                         await supabase.from('cuentas_por_cobrar').delete().eq('id', dup.id);
                         eliminados++;
@@ -1336,11 +1348,11 @@ export default function CuentasPorCobrar() {
                     }
                   }
 
-                  // Luego sincronizar montos
+                  // Luego sincronizar montos (respeta interés acumulado)
                   await sincronizarFacturas();
                   await cargarDatos();
                   setLoading(false);
-                  alert(`✅ Sincronización completada.\n${eliminados > 0 ? `Se eliminaron ${eliminados} registros duplicados.\n` : ''}Los montos han sido actualizados desde facturas_venta.`);
+                  alert(`✅ Sincronización completada.\n${eliminados > 0 ? `Se eliminaron ${eliminados} registros duplicados.\n` : ''}Los montos reflejan balance + interés acumulado.`);
                 }}
                 disabled={loading}
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl hover:from-teal-600 hover:to-teal-700 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-xs sm:text-sm disabled:opacity-50"
